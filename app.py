@@ -235,25 +235,6 @@ def main():
             clear_cached_audit()
             st.rerun()
 
-        # If a plan or file is currently loaded, surface a convenient 1-click removal option
-        if st.session_state.get("last_uploaded_name"):
-            c_file_info, c_file_btn = st.columns([4, 1])
-            with c_file_info:
-                st.caption(f"📁 Loaded: **`{st.session_state['last_uploaded_name']}`**" + (f" ({len(st.session_state.get('tfplan_policies', []))} embedded IAM policies)" if st.session_state.get("is_tfplan") else ""))
-            with c_file_btn:
-                if st.button("✕ Remove Plan", key="btn_remove_plan", help="Unload plan and return to default policy editor", use_container_width=True):
-                    st.session_state["is_tfplan"] = False
-                    st.session_state["tfplan_policies"] = []
-                    st.session_state["last_uploaded_name"] = None
-                    st.session_state["uploader_key_id"] = st.session_state.get("uploader_key_id", 0) + 1
-                    st.session_state["policy_editor"] = default_initial
-                    st.session_state["current_policy_label"] = "(Custom Policy)"
-                    st.session_state["last_selected_tf_idx"] = 0
-                    if "active_audit" in st.session_state:
-                        del st.session_state["active_audit"]
-                    clear_cached_audit()
-                    st.rerun()
-
         if uploaded_file is not None and uploaded_file.name != st.session_state.get("last_uploaded_name"):
             try:
                 uploaded_text = uploaded_file.read().decode("utf-8")
@@ -295,6 +276,26 @@ def main():
                     st.success(f"Loaded: `{uploaded_file.name}`")
             except Exception as e:
                 st.error(f"Error reading uploaded JSON: {str(e)}")
+
+        # If a plan or file is currently loaded, surface a convenient 1-click removal option
+        if uploaded_file is not None or st.session_state.get("last_uploaded_name"):
+            active_name = uploaded_file.name if uploaded_file else st.session_state.get("last_uploaded_name")
+            c_file_info, c_file_btn = st.columns([3, 1])
+            with c_file_info:
+                st.caption(f"📁 Loaded: **`{active_name}`**" + (f" ({len(st.session_state.get('tfplan_policies', []))} embedded IAM policies)" if st.session_state.get("is_tfplan") else ""))
+            with c_file_btn:
+                if st.button("✕ Remove Plan", key="btn_remove_plan", help="Unload plan and return to default policy editor", use_container_width=True, type="secondary"):
+                    st.session_state["is_tfplan"] = False
+                    st.session_state["tfplan_policies"] = []
+                    st.session_state["last_uploaded_name"] = None
+                    st.session_state["uploader_key_id"] = st.session_state.get("uploader_key_id", 0) + 1
+                    st.session_state["policy_editor"] = default_initial
+                    st.session_state["current_policy_label"] = "(Custom Policy)"
+                    st.session_state["last_selected_tf_idx"] = 0
+                    if "active_audit" in st.session_state:
+                        del st.session_state["active_audit"]
+                    clear_cached_audit()
+                    st.rerun()
 
         # Terraform Plan Policy Selector
         if st.session_state.get("is_tfplan") and st.session_state.get("tfplan_policies"):
@@ -644,8 +645,23 @@ def main():
             elapsed_sec = plan_summary.get("elapsed_seconds")
             elapsed_badge = f" • Evaluated in {elapsed_sec:.2f}s (Offline)" if elapsed_sec is not None else ""
 
-            st.header(f"🏛️ Terraform Architecture Deliverable: `{plan_name}`")
-            st.caption(f"100% Offline Assessment — {plan_summary.get('total_resources', 48)} Cloud Resources Scanned{elapsed_badge}")
+            c_dtitle, c_dclose = st.columns([3, 1])
+            with c_dtitle:
+                st.header(f"🏛️ Terraform Architecture Deliverable: `{plan_name}`")
+                st.caption(f"100% Offline Assessment — {plan_summary.get('total_resources', 48)} Cloud Resources Scanned{elapsed_badge}")
+            with c_dclose:
+                if st.button("✕ Remove Plan / New Audit", key="btn_close_plan_deliverable", use_container_width=True, type="secondary"):
+                    st.session_state["is_tfplan"] = False
+                    st.session_state["tfplan_policies"] = []
+                    st.session_state["last_uploaded_name"] = None
+                    st.session_state["uploader_key_id"] = st.session_state.get("uploader_key_id", 0) + 1
+                    st.session_state["policy_editor"] = default_initial
+                    st.session_state["current_policy_label"] = "(Custom Policy)"
+                    st.session_state["last_selected_tf_idx"] = 0
+                    if "active_audit" in st.session_state:
+                        del st.session_state["active_audit"]
+                    clear_cached_audit()
+                    st.rerun()
 
             tab_matrix, tab_failing, tab_report = st.tabs(
                 ["📊 Compliance Matrix", "🛠️ Remediations Deep-Dive", "📄 Export Consolidated Deliverables"]
