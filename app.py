@@ -203,6 +203,8 @@ def main():
         st.session_state["last_uploaded_name"] = None
     if "policy_editor" not in st.session_state:
         st.session_state["policy_editor"] = default_initial
+    if "uploader_key_id" not in st.session_state:
+        st.session_state["uploader_key_id"] = 0
 
     # Reactively update text area when dropdown changes
     if selected_sample != st.session_state["current_sample"]:
@@ -213,19 +215,44 @@ def main():
     # Input Area: File upload or paste
     col_input, col_meta = st.columns([3, 1])
     with col_input:
-        uploaded_file = st.file_uploader("📂 Upload AWS IAM Policy or Terraform Plan JSON File:", type=["json"])
-        
-        # Detect if user clicked the 'x' to clear the uploaded file
+        uploader_key = f"uploader_{st.session_state['uploader_key_id']}"
+        uploaded_file = st.file_uploader(
+            "📂 Upload AWS IAM Policy or Terraform Plan JSON File:",
+            type=["json"],
+            key=uploader_key,
+        )
+
+        # Handle user removing the file via the widget's native 'x' button
         if uploaded_file is None and st.session_state.get("last_uploaded_name") is not None:
-            st.session_state["last_uploaded_name"] = None
             st.session_state["is_tfplan"] = False
             st.session_state["tfplan_policies"] = []
+            st.session_state["last_uploaded_name"] = None
             st.session_state["policy_editor"] = default_initial
             st.session_state["current_policy_label"] = "(Custom Policy)"
+            st.session_state["last_selected_tf_idx"] = 0
             if "active_audit" in st.session_state:
                 del st.session_state["active_audit"]
             clear_cached_audit()
             st.rerun()
+
+        # If a plan or file is currently loaded, surface a convenient 1-click removal option
+        if st.session_state.get("last_uploaded_name"):
+            c_file_info, c_file_btn = st.columns([4, 1])
+            with c_file_info:
+                st.caption(f"📁 Loaded: **`{st.session_state['last_uploaded_name']}`**" + (f" ({len(st.session_state.get('tfplan_policies', []))} embedded IAM policies)" if st.session_state.get("is_tfplan") else ""))
+            with c_file_btn:
+                if st.button("✕ Remove Plan", key="btn_remove_plan", help="Unload plan and return to default policy editor", use_container_width=True):
+                    st.session_state["is_tfplan"] = False
+                    st.session_state["tfplan_policies"] = []
+                    st.session_state["last_uploaded_name"] = None
+                    st.session_state["uploader_key_id"] = st.session_state.get("uploader_key_id", 0) + 1
+                    st.session_state["policy_editor"] = default_initial
+                    st.session_state["current_policy_label"] = "(Custom Policy)"
+                    st.session_state["last_selected_tf_idx"] = 0
+                    if "active_audit" in st.session_state:
+                        del st.session_state["active_audit"]
+                    clear_cached_audit()
+                    st.rerun()
 
         if uploaded_file is not None and uploaded_file.name != st.session_state.get("last_uploaded_name"):
             try:
@@ -269,23 +296,8 @@ def main():
             except Exception as e:
                 st.error(f"Error reading uploaded JSON: {str(e)}")
 
-        # Terraform Plan Policy Selector & Unload Controls
+        # Terraform Plan Policy Selector
         if st.session_state.get("is_tfplan") and st.session_state.get("tfplan_policies"):
-            c_info, c_unload = st.columns([4, 1])
-            with c_info:
-                st.caption(f"📁 Plan: **`{st.session_state.get('last_uploaded_name', 'tfplan.json')}`** ({len(st.session_state.get('tfplan_policies', []))} embedded IAM policies)")
-            with c_unload:
-                if st.button("🗑️ Unload Plan", key="btn_unload_plan", use_container_width=True, help="Remove this Terraform plan and return to single policy editing"):
-                    st.session_state["last_uploaded_name"] = None
-                    st.session_state["is_tfplan"] = False
-                    st.session_state["tfplan_policies"] = []
-                    st.session_state["policy_editor"] = default_initial
-                    st.session_state["current_policy_label"] = "(Custom Policy)"
-                    if "active_audit" in st.session_state:
-                        del st.session_state["active_audit"]
-                    clear_cached_audit()
-                    st.rerun()
-
             tf_policies = st.session_state["tfplan_policies"]
             tf_options = []
             for p in tf_policies:
