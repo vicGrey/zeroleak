@@ -77,7 +77,7 @@ def analyze_with_gemma(
     policy_input: Union[str, Dict[str, Any]],
     model: str = DEFAULT_MODEL,
     ollama_host: str = DEFAULT_OLLAMA_HOST,
-    timeout_seconds: int = 120,
+    timeout_seconds: int = 180,
 ) -> Dict[str, Any]:
     """
     Executes a single structured JSON audit call against local Gemma via Ollama.
