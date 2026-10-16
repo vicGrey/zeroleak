@@ -1,0 +1,8 @@
+.git
+.venv
+__pycache__
+*.pyc
+.active_audit_cache.json
+test_*.pdf
+test_*.png
+test_output*

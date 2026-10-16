@@ -1,0 +1,45 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: zeroleak-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: zeroleak-ollama-init
+    depends_on:
+      - ollama
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "Waiting for local Ollama engine to start..."
+        until curl -s http://ollama:11434/api/tags > /dev/null; do
+          sleep 1
+        done
+        echo "Ollama is ready. Ensuring gemma2:2b is loaded..."
+        curl -s -X POST http://ollama:11434/api/pull -d '{"name": "gemma2:2b"}'
+        echo "Gemma 2B is ready!"
+
+  zeroleak:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zeroleak-app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+      - ollama-init
+
+volumes:
+  ollama_models:
+    name: zeroleak_ollama_models

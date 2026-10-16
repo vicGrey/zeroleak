@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAllActionsOnS3Bucket",
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "arn:aws:s3:::production-financial-records/*"
+    }
+  ]
+}

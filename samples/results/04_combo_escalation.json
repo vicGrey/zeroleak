@@ -1,0 +1,77 @@
+{
+  "policy_file": "04_combo_escalation.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowLambdaManagement",
+        "Effect": "Allow",
+        "Action": [
+          "lambda:CreateFunction",
+          "lambda:InvokeFunction"
+        ],
+        "Resource": "arn:aws:lambda:us-east-1:123456789012:function:*"
+      },
+      {
+        "Sid": "AllowPassRoleToAnyService",
+        "Effect": "Allow",
+        "Action": "iam:PassRole",
+        "Resource": "arn:aws:iam::123456789012:role/*"
+      }
+    ]
+  },
+  "step_1_baseline_gate": {
+    "passed": true,
+    "violation_count": 0,
+    "violations": [],
+    "note": "Baseline rule gate only checked wildcards (*). PassRole + Lambda was unencoded, resulting in a silent pass (0 violations)."
+  },
+  "step_2_gemma_audit": {
+    "success": true,
+    "latency_seconds": 64.17,
+    "threat_explanation": "This policy grants broad permissions to create and invoke Lambda functions and allows the IAM role to be passed to any service. This poses a significant risk as it allows attackers to potentially gain control of AWS resources by passing arbitrary roles to newly created Lambda functions.",
+    "combination_risks": [
+      "IAM:PassRole combined with lambda:CreateFunction allows privilege escalation via role assumption."
+    ],
+    "has_suggested_fix": true,
+    "suggested_fix": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "AllowLambdaInvokeOnly",
+          "Effect": "Allow",
+          "Action": [
+            "lambda:InvokeFunction"
+          ],
+          "Resource": "arn:aws:lambda:us-east-1:123456789012:function:my-function"
+        },
+        {
+          "Sid": "ScopedPassRoleToSpecificService",
+          "Effect": "Allow",
+          "Action": "iam:PassRole",
+          "Resource": "arn:aws:iam::123456789012:role/specific-lambda-execution-role"
+        }
+      ]
+    }
+  },
+  "step_3_discovery_loop_codification": {
+    "codified_rego_rule": "deny contains msg if { some s1 in get_statements; s1.Effect == 'Allow'; has_action(s1, 'iam:PassRole'); some s2 in get_statements; s2.Effect == 'Allow'; has_action(s2, 'lambda:CreateFunction'); msg := '[Rule: passrole_lambda_escalation] PassRole paired with lambda:CreateFunction allows privilege escalation.' }",
+    "gate_before_remediation": {
+      "passed": false,
+      "violation_count": 1,
+      "violations": [
+        {
+          "rule": "passrole_lambda_escalation",
+          "message": "[Rule: passrole_lambda_escalation] PassRole paired with lambda:CreateFunction allows privilege escalation via role assumption."
+        }
+      ]
+    },
+    "gate_after_remediation": {
+      "passed": true,
+      "violation_count": 0,
+      "violations": []
+    },
+    "verified_safe": true,
+    "note": "Breaks the circular check: before codifying, Conftest was 0 violations. Once codified, Conftest flags the un-remediated policy (1 violation) and mathematically verifies the remediated policy drops to 0 violations."
+  }
+}

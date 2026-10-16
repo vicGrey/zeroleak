@@ -1,0 +1,64 @@
+{
+  "policy_file": "01_control.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LambdaLogging",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/payment-processor:*"
+      },
+      {
+        "Sid": "S3ReceiptsReadOnly",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject"
+        ],
+        "Resource": "arn:aws:s3:::company-payment-receipts-prod/*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": true,
+    "violation_count": 0,
+    "violations": []
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 62.95,
+    "threat_explanation": "The policy grants broad access to AWS resources. The 'LambdaLogging' statement allows the execution of actions on logs, potentially exposing sensitive data. The 'S3ReceiptsReadOnly' statement grants read access to S3 buckets, potentially allowing unauthorized data access. This combination creates a significant risk of data leakage and unauthorized access.",
+    "combination_risks": [
+      "IAM policy allows for the execution of actions on logs, potentially exposing sensitive data. This could be exploited by attackers to gain unauthorized access to sensitive information.",
+      "IAM policy grants read access to S3 buckets, potentially allowing unauthorized data access. This could be exploited by attackers to gain unauthorized access to sensitive data stored in the S3 buckets."
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": true,
+    "gemma_caught_risks": true,
+    "reverification_passed": true,
+    "reverification_violations": 0,
+    "permission_loss": {
+      "narrowed": [],
+      "dropped": [],
+      "retained": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "s3:GetObject"
+      ],
+      "added": [
+        "s3:ListBucket"
+      ],
+      "warnings": [
+        "POTENTIAL HALLUCINATION: Proposed fix added 1 action(s) not present in original: s3:ListBucket."
+      ]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "policy_file": "06_polymorphic.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ActionAsStringWildcard",
+        "Effect": "Allow",
+        "Action": "*",
+        "Resource": "arn:aws:sqs:us-east-1:123456789012:billing-events"
+      },
+      {
+        "Sid": "ActionAsArrayWithEmbeddedWildcard",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "*"
+        ],
+        "Resource": "arn:aws:s3:::audit-logs/*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": false,
+    "violation_count": 2,
+    "violations": [
+      {
+        "rule": "no_wildcard_action",
+        "message": "[Rule: no_wildcard_action] Statement (Sid: 'ActionAsArrayWithEmbeddedWildcard', Action: 's3:GetObject, *') permits wildcard (*) Action. Over-privileged access violates least privilege."
+      },
+      {
+        "rule": "no_wildcard_action",
+        "message": "[Rule: no_wildcard_action] Statement (Sid: 'ActionAsStringWildcard', Action: '*') permits wildcard (*) Action. Over-privileged access violates least privilege."
+      }
+    ]
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 53.19,
+    "threat_explanation": "This policy grants broad access to AWS resources. The first statement allows any action on the specified SQS resource, potentially exposing sensitive billing information. The second statement grants access to all S3 buckets and objects, including potentially sensitive data. This poses a significant risk of unauthorized access and data breaches. ",
+    "combination_risks": [
+      "IAM policy combined with SQS resource access allows for potential data exfiltration and unauthorized access to billing information.",
+      "IAM policy combined with S3 bucket access allows for potential data exfiltration and unauthorized access to sensitive data."
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": false,
+    "gemma_caught_risks": true,
+    "reverification_passed": true,
+    "reverification_violations": 0,
+    "permission_loss": {
+      "narrowed": [
+        "s3:ListBucket"
+      ],
+      "dropped": [],
+      "retained": [
+        "s3:GetObject"
+      ],
+      "added": [],
+      "warnings": []
+    }
+  }
+}

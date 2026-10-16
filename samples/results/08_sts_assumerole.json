@@ -1,0 +1,49 @@
+{
+  "policy_file": "08_sts_assumerole.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "UnrestrictedSTSAssumeRole",
+        "Effect": "Allow",
+        "Action": "sts:AssumeRole",
+        "Resource": "*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": false,
+    "violation_count": 1,
+    "violations": [
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'UnrestrictedSTSAssumeRole', Action: 'sts:AssumeRole') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ]
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 38.95,
+    "threat_explanation": "The policy grants unrestricted access to the 'sts:AssumeRole' action, allowing any entity to assume any role. This poses a significant risk as it enables unauthorized access to AWS resources and services. Attackers could exploit this to impersonate users, gain control of AWS accounts, and perform malicious actions. This is a critical vulnerability as it allows for privilege escalation and potential data breaches.",
+    "combination_risks": [
+      "iam:PassRole combined with lambda:CreateFunction or ec2:RunInstances"
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": false,
+    "gemma_caught_risks": true,
+    "reverification_passed": true,
+    "reverification_violations": 0,
+    "permission_loss": {
+      "narrowed": [],
+      "dropped": [],
+      "retained": [
+        "sts:AssumeRole"
+      ],
+      "added": [],
+      "warnings": []
+    }
+  }
+}

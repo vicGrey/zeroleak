@@ -1,0 +1,53 @@
+{
+  "policy_file": "03_wildcard_resource.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowSecretsManagerReadGlobal",
+        "Effect": "Allow",
+        "Action": [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": false,
+    "violation_count": 1,
+    "violations": [
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowSecretsManagerReadGlobal', Action: 'secretsmanager:GetSecretValue, secretsmanager:DescribeSecret') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ]
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 42.42,
+    "threat_explanation": "This policy grants broad access to AWS Secrets Manager, allowing read access to all secrets and the ability to describe secrets. This poses a significant risk as it allows attackers to potentially steal sensitive information. The policy grants access to all resources, without any specific resource targeting, which increases the attack surface. This is a major security vulnerability as it allows attackers to potentially access and exploit sensitive information.",
+    "combination_risks": [
+      "The combination of 'secretsmanager:GetSecretValue' and 'secretsmanager:DescribeSecret' with unrestricted 'Resource' allows for potential abuse and unauthorized access to sensitive data."
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": false,
+    "gemma_caught_risks": true,
+    "reverification_passed": true,
+    "reverification_violations": 0,
+    "permission_loss": {
+      "narrowed": [],
+      "dropped": [],
+      "retained": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+      ],
+      "added": [],
+      "warnings": []
+    }
+  }
+}

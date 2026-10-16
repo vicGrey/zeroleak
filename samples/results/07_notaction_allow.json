@@ -1,0 +1,61 @@
+{
+  "policy_file": "07_notaction_allow.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DangerousNotActionWithAllow",
+        "Effect": "Allow",
+        "NotAction": [
+          "iam:*",
+          "organizations:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": false,
+    "violation_count": 2,
+    "violations": [
+      {
+        "rule": "no_notaction_allow",
+        "message": "[Rule: no_notaction_allow] Statement (Sid: 'DangerousNotActionWithAllow') uses 'NotAction' with 'Effect: Allow'. This grants all AWS actions except the excluded list, creating massive privilege escalation risk."
+      },
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'DangerousNotActionWithAllow', Action: 'unspecified') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ]
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 47.97,
+    "threat_explanation": "This policy grants an unrestricted 'Allow' effect on all AWS resources, including those related to IAM and Organizations. This poses a significant risk as it allows any user or service to perform actions on any resource without proper authorization. This could lead to unauthorized access, data breaches, and potential misuse of AWS services. The policy also lacks specific resource targeting, allowing for potential abuse and unintended access.",
+    "combination_risks": [
+      "The combination of 'NotAction' with 'Resource:*' creates a vulnerability for privilege escalation and unauthorized access. This allows any user or service to perform actions on any resource without proper authorization, potentially leading to data breaches and misuse of AWS services."
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": false,
+    "gemma_caught_risks": true,
+    "reverification_passed": true,
+    "reverification_violations": 0,
+    "permission_loss": {
+      "narrowed": [],
+      "dropped": [],
+      "retained": [],
+      "added": [
+        "ec2:RunInstances",
+        "s3:ListBucket",
+        "sts:AssumeRole"
+      ],
+      "warnings": [
+        "SCOPE LIMIT: Policy uses 'NotAction'. Dropping or modifying NotAction requires manual human review.",
+        "POTENTIAL HALLUCINATION: Proposed fix added 3 action(s) not present in original: ec2:RunInstances, s3:ListBucket, sts:AssumeRole."
+      ]
+    }
+  }
+}

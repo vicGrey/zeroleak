@@ -1,0 +1,53 @@
+{
+  "policy_file": "05_dynamodb_overpriv.json",
+  "input_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DynamoDBFullAccessUnscoped",
+        "Effect": "Allow",
+        "Action": "dynamodb:*",
+        "Resource": "*"
+      }
+    ]
+  },
+  "opa_alone": {
+    "passed": false,
+    "violation_count": 2,
+    "violations": [
+      {
+        "rule": "no_wildcard_action",
+        "message": "[Rule: no_wildcard_action] Statement (Sid: 'DynamoDBFullAccessUnscoped', Action: 'dynamodb:*') permits wildcard (*) Action. Over-privileged access violates least privilege."
+      },
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'DynamoDBFullAccessUnscoped', Action: 'dynamodb:*') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ]
+  },
+  "gemma_alone": {
+    "success": true,
+    "latency_seconds": 50.37,
+    "threat_explanation": "This policy grants full access to all DynamoDB resources, including the ability to read, write, and delete data. This is a significant security risk as it allows an attacker to potentially manipulate or delete sensitive data. This policy lacks any scope or restrictions, making it vulnerable to abuse.",
+    "combination_risks": [
+      "The combination of 'dynamodb:*' with '*' grants unrestricted access to all DynamoDB resources, creating a high-risk attack surface."
+    ],
+    "has_suggested_fix": true,
+    "error": null
+  },
+  "zeroleak_combined": {
+    "initial_opa_passed": false,
+    "gemma_caught_risks": true,
+    "reverification_passed": false,
+    "reverification_violations": 1,
+    "permission_loss": {
+      "narrowed": [
+        "dynamodb:*"
+      ],
+      "dropped": [],
+      "retained": [],
+      "added": [],
+      "warnings": []
+    }
+  }
+}
