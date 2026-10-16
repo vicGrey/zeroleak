@@ -584,6 +584,7 @@ def generate_plan_markdown_report(
     total_iam = plan_summary.get("total_iam_policies", len(audited_items))
     total_failed = plan_summary.get("total_failed", 0)
     total_passed = plan_summary.get("total_passed", 0)
+    total_uneval = plan_summary.get("total_unevaluated", 0)
 
     lines = [
         f"# ZeroLeak AI — Terraform Plan Consolidated Security Assessment",
@@ -602,6 +603,7 @@ def generate_plan_markdown_report(
         f"| **Embedded IAM Policies Identified** | `{total_iam}` | Inline role policies & trust relationships |",
         f"| **Non-Compliant Policies (Failed)** | `{total_failed}` | Over-privileged / wildcard violations |",
         f"| **Compliant Policies (Passed)** | `{total_passed}` | Met least-privilege baseline |",
+        f"| **Unevaluated Dynamic Policies** | `{total_uneval}` | Text unknown at plan time (computed after apply) |",
         f"",
         f"### Architecture Compliance Matrix",
         f"",
@@ -613,10 +615,17 @@ def generate_plan_markdown_report(
         addr = item.get("address", "Unknown")
         rtype = item.get("resource_type", "")
         attr = item.get("attribute", "policy")
-        opa_passed = item.get("opa_res", {}).get("passed", False)
-        opa_label = "✅ PASSED" if opa_passed else f"❌ FAILED ({item.get('opa_res', {}).get('violation_count', 1)})"
-        gemma_res = item.get("gemma_res")
-        gemma_label = "REMEDIATED" if (gemma_res and gemma_res.get("suggested_fix")) else ("COMPLIANT" if opa_passed else "PENDING")
+        is_uneval = item.get("is_unevaluated", False)
+
+        if is_uneval:
+            opa_label = "⚠️ NOT EVALUATED"
+            gemma_label = "KNOWN AFTER APPLY"
+        else:
+            opa_passed = item.get("opa_res", {}).get("passed", False)
+            opa_label = "✅ PASSED" if opa_passed else f"❌ FAILED ({item.get('opa_res', {}).get('violation_count', 1)})"
+            gemma_res = item.get("gemma_res")
+            gemma_label = "REMEDIATED" if (gemma_res and gemma_res.get("suggested_fix")) else ("COMPLIANT" if opa_passed else "FLAGGED")
+
         lines.append(f"| `{addr}` | `{rtype}` | `{attr}` | `{opa_label}` | `{gemma_label}` |")
 
     lines.append("")
@@ -625,9 +634,9 @@ def generate_plan_markdown_report(
     lines.append("## 2. Non-Compliant Resource Deep-Dives & Remediations")
     lines.append("")
 
-    failing_items = [i for i in audited_items if not i.get("opa_res", {}).get("passed", False)]
+    failing_items = [i for i in audited_items if not i.get("opa_res", {}).get("passed", False) and not i.get("is_unevaluated", False)]
     if not failing_items:
-        lines.append("✅ All embedded IAM policies in this Terraform plan passed deterministic verification gates.")
+        lines.append("✅ All evaluated IAM policies in this Terraform plan passed deterministic verification gates.")
     else:
         for idx, item in enumerate(failing_items, 1):
             addr = item.get("address", "Unknown")
@@ -659,23 +668,32 @@ def generate_plan_markdown_report(
 
             narrowed = diff_res.get("narrowed", [])
             dropped = diff_res.get("dropped", [])
-            if narrowed or dropped:
-                lines.append(f"**Permission Shifts:**")
-                if narrowed:
-                    lines.append(f"- Narrowed: {', '.join(f'`{a}`' for a in narrowed)}")
-                if dropped:
-                    lines.append(f"- Dropped: {', '.join(f'`{a}`' for a in dropped)}")
+            warnings = diff_res.get("warnings", [])
+
+            if dropped:
+                lines.append(f"> [!WARNING]")
+                lines.append(f"> **⚠️ Human Approval Required: Dropped Permissions Detected**  ")
+                lines.append(f"> Remediation removed **{len(dropped)}** action(s). Review target workload runtime before deploying:  ")
+                lines.append(f"> **Dropped Actions ({len(dropped)}):** `{', '.join(dropped)}`")
+                lines.append("")
+
+            if narrowed:
+                lines.append(f"- **Narrowed Permissions:** {', '.join(f'`{a}`' for a in narrowed)}")
+                lines.append("")
+
+            if warnings:
+                for w in warnings:
+                    lines.append(f"> [!CAUTION] {w}")
                 lines.append("")
 
             if suggested_fix:
-                lines.append(f"**Proposed Scoped Remediation Policy:**")
+                reverify_passed = reverify.get("passed", False)
+                reverify_msg = "RULE GATE: PASSED (Workload & ARN validity not checked)" if reverify_passed else "RULE GATE: FAILED"
+                lines.append(f"**Proposed Scoped Remediation Policy:** (`{reverify_msg}`)")
                 lines.append("```json")
                 lines.append(json.dumps(suggested_fix, indent=2))
                 lines.append("```")
-                lines.append("")
-                reverify_passed = reverify.get("passed", False)
-                reverify_msg = "✅ PASSED (0 violations remaining)" if reverify_passed else "❌ FAILED"
-                lines.append(f"**Re-verification Status:** `{reverify_msg}`")
+                lines.append("> *Advisory: Verify that dropped actions are not invoked by application runtimes and that scoped resource ARNs match target AWS service specifications.*")
                 lines.append("")
 
     return "\n".join(lines)
@@ -726,7 +744,7 @@ def generate_plan_html_report(
         """
 
     failing_sections = ""
-    failing_items = [i for i in audited_items if not i.get("opa_res", {}).get("passed", False)]
+    failing_items = [i for i in audited_items if not i.get("opa_res", {}).get("passed", False) and not i.get("is_unevaluated", False)]
     for idx, item in enumerate(failing_items, 1):
         addr = item.get("address", "Unknown")
         opa_res = item.get("opa_res", {})
@@ -762,22 +780,42 @@ def generate_plan_html_report(
 
         narrowed = diff_res.get("narrowed", [])
         dropped = diff_res.get("dropped", [])
+        warnings = diff_res.get("warnings", [])
+
         perm_markup = ""
-        if narrowed or dropped:
-            perm_markup = f"""
-            <div style="margin: 8px 0;">
-                <strong style="font-size: 8pt; color: #475569;">Permission Loss Analysis:</strong>
-                <div class="perm-grid" style="margin-top: 4px;">
-                    {"".join(f'<span class="perm-pill narrowed">✓ {act}</span>' for act in narrowed)}
-                    {"".join(f'<span class="perm-pill dropped">✕ {act}</span>' for act in dropped)}
+        if dropped:
+            perm_markup += f"""
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-left: 3.5px solid #dc2626; border-radius: 4px; padding: 8px 10px; margin: 8px 0;">
+                <div style="color: #991b1b; font-weight: 700; font-size: 8pt; margin-bottom: 2px;">
+                    ⚠️ Human Approval Required: Dropped Permissions Detected
+                </div>
+                <div style="color: #7f1d1d; font-size: 7.5pt; margin-bottom: 4px;">
+                    The proposed remediation removed <strong>{len(dropped)}</strong> action(s). Verify target workload runtime before deploying.
+                </div>
+                <div style="font-size: 7.5pt; color: #991b1b;">
+                    <strong>Dropped Actions ({len(dropped)}):</strong> <code>{', '.join(dropped)}</code>
                 </div>
             </div>
             """
 
+        if narrowed:
+            perm_markup += f"""
+            <div style="margin: 6px 0;">
+                <strong style="font-size: 7.5pt; color: #475569;">Narrowed Permissions:</strong>
+                <div class="perm-grid" style="margin-top: 4px;">
+                    {"".join(f'<span class="perm-pill narrowed">✓ {act}</span>' for act in narrowed)}
+                </div>
+            </div>
+            """
+
+        if warnings:
+            for w in warnings:
+                perm_markup += f'<div class="callout callout-warn" style="margin: 4px 0; font-size: 7.5pt;"><strong>⚠️ Guardrail Notice:</strong> {w}</div>'
+
         fix_markup = ""
         if suggested_fix:
             fix_json_str = json.dumps(suggested_fix, indent=2)
-            reverify_badge = '<span class="status-badge badge-pass">RULE GATE: PASSED (Workload & ARN validity not checked)</span>' if reverify.get("passed") else '<span class="status-badge badge-fail">RULE GATE: FAILED</span>'
+            reverify_badge = '<span class="status-badge badge-pass" style="font-size: 7pt;">RULE GATE: PASSED (Workload & ARN validity not checked)</span>' if reverify.get("passed") else '<span class="status-badge badge-fail" style="font-size: 7pt;">RULE GATE: FAILED</span>'
             fix_markup = f"""
             <div style="margin-top: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -785,6 +823,9 @@ def generate_plan_html_report(
                     {reverify_badge}
                 </div>
                 <div class="code-box">{fix_json_str}</div>
+                <p style="font-size: 7pt; color: #64748b; margin: 4px 0 0 0; font-style: italic;">
+                    *Advisory: Verify that dropped actions are not invoked by application runtimes and that scoped resource ARNs match target AWS service specifications.
+                </p>
             </div>
             """
 
@@ -852,23 +893,24 @@ def generate_plan_html_report(
     }}
     h1 {{
         color: #0f172a;
-        font-size: 17pt;
+        font-size: 13.5pt;
         margin: 0 0 4px 0;
         font-weight: 800;
-        letter-spacing: -0.3px;
+        letter-spacing: -0.2px;
+        white-space: nowrap;
     }}
     .subtitle {{
         color: #64748b;
-        font-size: 9pt;
+        font-size: 8.5pt;
         margin: 0;
     }}
     .meta-box {{
         background-color: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
-        padding: 10px 14px;
-        margin-bottom: 20px;
-        font-size: 8.5pt;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        font-size: 8pt;
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 6px;
@@ -877,29 +919,31 @@ def generate_plan_html_report(
         color: #475569;
     }}
     .stat-row {{
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 18px;
     }}
     .stat-box {{
+        flex: 1;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
-        padding: 12px;
+        padding: 8px 4px;
         text-align: center;
+        box-sizing: border-box;
     }}
     .stat-val {{
-        font-size: 16pt;
+        font-size: 14pt;
         font-weight: 800;
         color: #0f172a;
     }}
     .stat-lbl {{
-        font-size: 7.5pt;
+        font-size: 6pt;
         color: #64748b;
         text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
         margin-top: 2px;
     }}
     h2 {{
@@ -913,67 +957,76 @@ def generate_plan_html_report(
     }}
     .table-modern {{
         width: 100%;
+        max-width: 100%;
         table-layout: fixed;
         border-collapse: collapse;
-        margin: 10px 0 20px 0;
-        font-size: 7.5pt;
+        margin: 10px 0 16px 0;
+        font-size: 7pt;
+        box-sizing: border-box;
+    }}
+    .table-modern th, .table-modern td {{
+        box-sizing: border-box;
     }}
     .table-modern th {{
         background-color: #f1f5f9;
         color: #334155;
         font-weight: 700;
         text-align: left;
-        padding: 6px 8px;
+        padding: 5px 6px;
         border: 1px solid #cbd5e1;
-        font-size: 7pt;
+        font-size: 6.5pt;
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }}
     .table-modern td {{
-        padding: 5px 8px;
+        padding: 5px 6px;
         border: 1px solid #e2e8f0;
         vertical-align: middle;
-        font-size: 7.5pt;
+        font-size: 6.5pt;
     }}
     .table-modern td.cell-addr {{
         font-family: monospace;
-        font-size: 7pt;
+        font-size: 6pt;
         font-weight: 600;
         color: #0f172a;
         word-break: break-word;
         overflow-wrap: anywhere;
-        line-height: 1.25;
+        line-height: 1.2;
     }}
     .table-modern td.cell-type {{
-        font-size: 7pt;
+        font-size: 6pt;
         color: #475569;
         word-break: break-word;
         overflow-wrap: anywhere;
-        line-height: 1.25;
+        line-height: 1.2;
     }}
     .table-modern td.cell-attr {{
-        font-size: 7pt;
+        font-size: 6pt;
         color: #64748b;
         word-break: break-word;
         overflow-wrap: anywhere;
-        line-height: 1.25;
+        line-height: 1.2;
     }}
     .table-modern td.cell-center {{
         text-align: center;
-        white-space: nowrap;
+        padding: 4px 2px;
     }}
     .table-modern tr:nth-child(even) {{
         background-color: #f8fafc;
     }}
     .status-badge {{
-        font-size: 7pt;
+        font-size: 6pt;
         font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 2px 4px;
+        border-radius: 3px;
         display: inline-block;
         border: 1px solid transparent;
         letter-spacing: 0.2px;
-        white-space: nowrap;
+        line-height: 1.15;
+        text-align: center;
+        box-sizing: border-box;
+        max-width: 100%;
+        white-space: normal;
     }}
     .badge-pass {{
         background-color: #ecfdf5;
@@ -1079,12 +1132,12 @@ def generate_plan_html_report(
 <div class="report-wrapper">
     <div class="header-bar">
         <div class="title-row">
-            <div>
+            <div style="flex: 1;">
                 <h1>🛡️ ZeroLeak AI — Architecture Security Report</h1>
                 <p class="subtitle">Consolidated Least-Privilege Assessment for Terraform Infrastructure</p>
             </div>
-            <div style="text-align: right;">
-                <span class="status-badge {'badge-fail' if total_failed > 0 else 'badge-pass'}" style="font-size: 9pt; padding: 4px 10px;">
+            <div style="flex-shrink: 0; text-align: right; margin-left: 12px;">
+                <span class="status-badge {'badge-fail' if total_failed > 0 else 'badge-pass'}" style="font-size: 8pt; padding: 4px 8px; white-space: nowrap;">
                     {'NON-COMPLIANT' if total_failed > 0 else 'COMPLIANT'}
                 </span>
             </div>
@@ -1124,19 +1177,19 @@ def generate_plan_html_report(
     <h2>1. Architecture IAM Compliance Matrix</h2>
     <table class="table-modern">
         <colgroup>
-            <col style="width: 36%;">
+            <col style="width: 32%;">
+            <col style="width: 17%;">
+            <col style="width: 13%;">
             <col style="width: 18%;">
-            <col style="width: 16%;">
-            <col style="width: 15%;">
-            <col style="width: 15%;">
+            <col style="width: 20%;">
         </colgroup>
         <thead>
             <tr>
-                <th style="width: 36%;">Resource Address</th>
-                <th style="width: 18%;">Type</th>
-                <th style="width: 16%;">Attribute</th>
-                <th style="width: 15%; text-align: center;">OPA Gate</th>
-                <th style="width: 15%; text-align: center;">Remediation</th>
+                <th style="width: 32%;">Resource Address</th>
+                <th style="width: 17%;">Type</th>
+                <th style="width: 13%;">Attribute</th>
+                <th style="width: 18%; text-align: center;">OPA Gate</th>
+                <th style="width: 20%; text-align: center;">Remediation</th>
             </tr>
         </thead>
         <tbody>
