@@ -223,10 +223,10 @@ def main():
                 if is_terraform_plan(parsed_json):
                     st.session_state["tfplan_resource_count"] = len(parsed_json.get("resource_changes", []))
                     extracted_policies = extract_iam_policies_from_plan(parsed_json)
-                    # Sort: failing policies first, then inline policies before trust policies
+                    # Sort: failing policies first (0), passing policies second (1), unevaluated/dynamic policies last (2)
                     extracted_policies.sort(
                         key=lambda p: (
-                            0 if not evaluate_policy(p["policy_dict"])["passed"] else 1,
+                            2 if not p.get("is_evaluated", True) else (0 if not evaluate_policy(p["policy_dict"])["passed"] else 1),
                             0 if p.get("attribute") == "policy" else 1,
                             p.get("address", ""),
                         )
@@ -235,8 +235,17 @@ def main():
                     st.session_state["is_tfplan"] = True
                     st.session_state["last_selected_tf_idx"] = 0
                     if extracted_policies:
-                        st.session_state["policy_editor"] = extracted_policies[0]["policy_json_str"]
-                        st.session_state["current_policy_label"] = extracted_policies[0]["address"]
+                        first_pol = extracted_policies[0]
+                        if not first_pol.get("is_evaluated", True):
+                            st.session_state["policy_editor"] = json.dumps({
+                                "_notice": "Policy text unknown at plan time (computed after 'terraform apply')",
+                                "resource_address": first_pol.get("address"),
+                                "resource_type": first_pol.get("resource_type"),
+                                "reason": first_pol.get("unevaluated_reason", "Computed after apply")
+                            }, indent=2)
+                        else:
+                            st.session_state["policy_editor"] = first_pol["policy_json_str"]
+                        st.session_state["current_policy_label"] = first_pol["address"]
                     st.success(f"📦 Detected Terraform Plan (`{uploaded_file.name}`): Extracted {len(extracted_policies)} embedded IAM policies.")
                 else:
                     st.session_state["is_tfplan"] = False
@@ -252,8 +261,11 @@ def main():
             tf_policies = st.session_state["tfplan_policies"]
             tf_options = []
             for p in tf_policies:
-                eval_check = evaluate_policy(p["policy_dict"])
-                icon = "❌ FAILED" if not eval_check["passed"] else "✅ PASSED"
+                if not p.get("is_evaluated", True):
+                    icon = "⚠️ KNOWN AFTER APPLY"
+                else:
+                    eval_check = evaluate_policy(p["policy_dict"])
+                    icon = "❌ FAILED" if not eval_check["passed"] else "✅ PASSED"
                 tf_options.append(f"{icon} | {p['address']} ({p['attribute']})")
 
             cur_idx = st.session_state.get("last_selected_tf_idx", 0)
@@ -269,9 +281,28 @@ def main():
             )
             if selected_tf_idx != st.session_state.get("last_selected_tf_idx"):
                 st.session_state["last_selected_tf_idx"] = selected_tf_idx
-                st.session_state["policy_editor"] = tf_policies[selected_tf_idx]["policy_json_str"]
-                st.session_state["current_policy_label"] = tf_policies[selected_tf_idx]["address"]
+                selected_pol = tf_policies[selected_tf_idx]
+                if not selected_pol.get("is_evaluated", True):
+                    st.session_state["policy_editor"] = json.dumps({
+                        "_notice": "Policy text unknown at plan time (computed after 'terraform apply')",
+                        "resource_address": selected_pol.get("address"),
+                        "resource_type": selected_pol.get("resource_type"),
+                        "reason": selected_pol.get("unevaluated_reason", "Computed after apply"),
+                        "action_required": "Inspect this policy in AWS console or state after deployment."
+                    }, indent=2)
+                else:
+                    st.session_state["policy_editor"] = selected_pol["policy_json_str"]
+                st.session_state["current_policy_label"] = selected_pol["address"]
                 st.rerun()
+
+        is_cur_uneval = False
+        if st.session_state.get("is_tfplan") and st.session_state.get("tfplan_policies"):
+            cur_idx = st.session_state.get("last_selected_tf_idx", 0)
+            if cur_idx < len(st.session_state["tfplan_policies"]):
+                is_cur_uneval = not st.session_state["tfplan_policies"][cur_idx].get("is_evaluated", True)
+
+        if is_cur_uneval:
+            st.info("ℹ️ **Dynamic Policy (Known After Apply):** This IAM policy references dynamic infrastructure outputs (like database ARNs or bucket names) that only exist after `terraform apply`. Its JSON text is not available in the execution plan.")
 
         policy_input_text = st.text_area(
             "AWS IAM Policy JSON to Audit (or edit uploaded/selected policy):",
@@ -446,13 +477,17 @@ def main():
             st.error(f"❌ Invalid JSON Syntax: {str(err)}")
             return
 
+        if isinstance(policy_dict, dict) and policy_dict.get("_notice"):
+            st.warning("⚠️ **Cannot Audit Dynamic Policy in Single Mode:** This policy document contains computed values unknown at plan time. Click **'📋 Audit Entire Plan (Unified)'** to generate an executive deliverable that records this resource for post-apply audit.")
+            return
+
         # If user directly pasted a full Terraform plan into the text box instead of uploading:
         if is_terraform_plan(policy_dict):
             extracted = extract_iam_policies_from_plan(policy_dict)
             if extracted:
                 extracted.sort(
                     key=lambda p: (
-                        0 if not evaluate_policy(p["policy_dict"])["passed"] else 1,
+                        2 if not p.get("is_evaluated", True) else (0 if not evaluate_policy(p["policy_dict"])["passed"] else 1),
                         0 if p.get("attribute") == "policy" else 1,
                         p.get("address", ""),
                     )
