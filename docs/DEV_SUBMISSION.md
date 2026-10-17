@@ -3,7 +3,6 @@ title: Two Green Checkmarks That Proved Nothing: An Offline AWS IAM Auditor Buil
 published: false
 description: A Conftest Rego gate plus a local Gemma 2 2B model that audits AWS IAM policies without client data ever leaving your laptop, and what happened when its own checks passed for the wrong reason, twice.
 tags: devchallenge, hf26challenge, gemma, security
-cover_image: 
 ---
 
 *This is a submission for the [Hacktoberfest Open-Source AI Challenge Week 2: Side Hustle](https://dev.to/challenges/hacktoberfest-week2-2026-10-12)*
@@ -33,12 +32,12 @@ Test policy 04 grants `iam:PassRole` together with `lambda:CreateFunction`. That
 
 My first pipeline did this:
 
-1. Conftest checked the policy: **0 violations.**
+1. In single-policy mode, Conftest checked the policy: **0 violations.**
 2. Gemma flagged the PassRole + Lambda escalation.
 3. Gemma wrote a scoped fix.
 4. Conftest checked the fix: **0 violations.**
 
-It looked like Gemma had caught what the linter missed and the linter had confirmed the fix. But a review of my initial test results pointed out the flaw in my logic: that verification was completely circular. My ruleset only checked for wildcards. It had never tested for PassRole + Lambda, so the fix passed because the gate wasn't looking. A broken fix would have passed too.
+It looked like Gemma had caught what the linter missed and the linter had confirmed the fix. When I had my results reviewed, the reviewer pointed out the flaw in my logic: that verification was completely circular. My ruleset only checked for wildcards. It had never tested for PassRole + Lambda, so the fix passed because the gate wasn't looking. A broken fix would have passed too.
 
 That changed how ZeroLeak verifies its fixes. The model and the gate now work as a loop:
 
@@ -58,6 +57,8 @@ deny contains msg if {
     has_action(s2, "lambda:CreateFunction")
     msg := "[passrole_lambda_escalation] PassRole with lambda:CreateFunction allows privilege escalation."
 }
+
+# helpers in policies/iam_policy.rego
 ```
 
 With that rule, the original policy fails (1 violation) and Gemma's fix passes (0). Now the green check means something.
@@ -77,7 +78,7 @@ In a Terraform plan, a policy that interpolates values created at apply time (a 
 The gate flagged two policies for `Resource: "*"`: an API Gateway CloudWatch logging role and a Lambda that reports results for an AWS Config rule. Gemma rewrote both, and both rewrites passed re-verification with 0 violations. Checking them by hand:
 
 - **API Gateway role:** the fix dropped `logs:PutLogEvents`, the permission that lets API Gateway write logs at all, along with `GetLogEvents` and `FilterLogEvents`. The report's permission-loss list did show the drops. It couldn't tell me that one of them was the whole point of the role. The fix's resource, `arn:aws:logs:*:*:log-group-name`, isn't a valid log group ARN either.
-- **Config Lambda:** Gemma scoped the policy to `arn:aws:iam::123456789012:role/MyRole`, which is AWS's placeholder account ID and an IAM role ARN. Neither `config:PutEvaluations` nor `apigateway:GET` operates on a role. In fact, the official [AWS Service Authorization Reference for Config](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsconfig.html) confirms that `config:PutEvaluations` does not support resource-level permissions (its Resource types column is empty; `Resource` must always be `*`), matching AWS's own [sample policy for a custom Config rule](https://aws.amazon.com/premiumsupport/knowledge-center/config-rule-unsupported-resource-type/).
+- **Config Lambda:** Gemma scoped the policy to `arn:aws:iam::123456789012:role/MyRole`, which is AWS's placeholder account ID and an IAM role ARN. Neither `config:PutEvaluations` nor `apigateway:GET` operates on a role. In fact, the official [AWS Service Authorization Reference for Config](https://docs.aws.amazon.com/service-authorization/latest/reference/list_config.html) confirms that `config:PutEvaluations` does not support resource-level permissions (its Resource types column is empty; `Resource` must always be `*`), matching AWS's own [sample policy for a custom Config rule](https://aws.amazon.com/premiumsupport/knowledge-center/config-rule-unsupported-resource-type/).
 
 ### Why the check passed
 
@@ -131,7 +132,7 @@ The privacy promise is only keepable if the weights run on your own machine. A h
 
 It also changes the economics. An audit costs nothing per run, with no per-token bill, which matters for a freelancer whose margin on a small engagement is thin.
 
-Closed models win on other fronts. A hosted frontier model is probably faster, and probably better at spotting escalation chains than a 2B model on a CPU. I'm trading that for privacy and cost, and for a deterministic gate so the tool never depends on the model being smart.
+Closed models win on other fronts. A hosted frontier model is probably faster, and probably better at spotting escalation chains than a 2B model on a CPU. I'm trading that for privacy and cost, and for a deterministic gate so the deterministic floor never depends on the model being smart.
 
 And since the weights are open, anyone can run the same model on the same test policies and check my results without an API key.
 
@@ -141,7 +142,7 @@ And since the weights are open, anyone can run the same model on the same test p
 
 ## Honest Limits
 
-- **The gate only proves your rules.** Zero violations means zero violations of the rules I wrote. My PassRole rule is deliberately coarse and would flag a properly scoped deployer role.
+- **The gate only proves your rules.** Zero violations means zero violations of the rules I wrote. My PassRole rule is deliberately coarse and would flag a properly scoped deployer role; a production rule should check Resource and flag a missing iam:PassedToService condition.
 - **One policy at a time.** Real escalation often spans several policies on the same role. Tools like PMapper and IAM Access Analyzer cover that.
 - **Discovery is n = 1.** Gemma catching one famous pattern doesn't show a 2B model reliably finds escalation chains.
 - **My real-world data is one plan.** Two flags, both on common patterns, with fixes I couldn't use as written. Three policies weren't evaluable at plan time, and in batch mode the model never sees policies that pass the gate. That's a small sample, not a false-positive rate.
