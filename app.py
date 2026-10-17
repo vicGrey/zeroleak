@@ -893,12 +893,26 @@ def main():
                         st.markdown('<div class="badge-warn">⚠️ Gemma Pass Skipped</div>', unsafe_allow_html=True)
                         st.caption(gemma_res.get("error", "Ollama offline."))
 
+            combos = gemma_res.get("combination_risks", []) if gemma_res else []
+
             with tab_remediation:
                 st.subheader("Stage 3: Proposed Scoped Remediation")
-                if opa_res.get("passed"):
-                    st.success("✅ **Policy Compliant:** This policy passed deterministic least-privilege verification (0 rule violations). No automated code remediation is required.")
+                if opa_res.get("passed") and not combos:
+                    st.success("🛡️ **Clean Policy Preserved Intact:** This policy passed deterministic least-privilege verification and no combination risks were spotted. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.")
                     st.markdown("Your original policy is safe to keep and deploy:")
                     st.json(policy_dict)
+                elif opa_res.get("passed") and combos:
+                    st.warning("⚠️ **Manual Review Recommended (Unencoded Risks Spotted):** The policy passed active deterministic rules (0 violations), but local model reasoning flagged potential privilege escalation / combination risks. Per the ZeroLeak Discovery Loop, review this advisory remediation and consider codifying this pattern into a new Rego rule.")
+                    if suggested_fix:
+                        st.markdown("**Advisory Remediation Strategy:**")
+                        st.write(gemma_res.get("fix_explanation", "Permissions scoped to least privilege."))
+                        st.markdown("#### Advisory Proposed Policy JSON (Discovery Loop)")
+                        st.json(suggested_fix)
+                        st.caption(
+                            "ℹ️ **Production Advisory:** ZeroLeak operates strictly offline without credentials to your live AWS account. "
+                            "Remediated policies frequently introduce synthetic placeholder account IDs (e.g. `123456789012`), placeholder identities (e.g. `my-user`), "
+                            "and generic resource paths. Prior to deployment, replace placeholders with actual AWS resource ARNs and verify workload compatibility."
+                        )
                 elif suggested_fix:
                     st.markdown("**Remediation Strategy:**")
                     st.write(gemma_res.get("fix_explanation", "Permissions narrowed to least privilege."))
@@ -915,8 +929,8 @@ def main():
 
             with tab_diff:
                 st.subheader("Stage 4: Permission Loss Tracker & Guardrails")
-                if opa_res.get("passed"):
-                    st.info("✅ **Zero Code Drift:** Because the policy passed deterministic AST verification, no permissions were narrowed, dropped, or modified.")
+                if opa_res.get("passed") and not combos:
+                    st.info("🛡️ **Zero Code Drift:** Because the policy passed deterministic AST verification and no combination risks were spotted, code was preserved intact.")
                 elif diff_res and suggested_fix:
                     c1, c2, c3, c4 = st.columns(4)
                     c1.metric("Narrowed", len(diff_res["narrowed"]))
@@ -946,8 +960,8 @@ def main():
 
             with tab_reverify:
                 st.subheader("Stage 5: Automated Conftest Re-Verification Pass")
-                if opa_res.get("passed"):
-                    st.success("✅ **Baseline Verified:** This policy passed deterministic AST verification on the initial gate (0 rule violations).")
+                if opa_res.get("passed") and not combos:
+                    st.success("🛡️ **Baseline Verified:** This policy passed deterministic AST verification on the initial gate with 0 rule violations and 0 combination risks.")
                     st.markdown("Your original policy complies with least-privilege standards:")
                     st.json(policy_dict)
                 elif reverify_res and suggested_fix:
