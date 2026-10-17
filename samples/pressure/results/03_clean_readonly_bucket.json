@@ -20,15 +20,38 @@
   "conftest_gate": {
     "valid_json": true,
     "passed": true,
-    "violations": [],
     "violation_count": 0,
-    "error": null,
-    "raw_output": [
-      {
-        "filename": "",
-        "namespace": "main",
-        "successes": 3
-      }
-    ]
+    "violations": []
+  },
+  "gemma_audit": {
+    "success": true,
+    "threat_explanation": "The policy grants access to S3 objects. To further restrict access, an ownership condition can be appended.",
+    "combination_risks": [
+      "Access is not explicitly restricted to bucket owner."
+    ],
+    "has_suggested_fix": true,
+    "suggested_fix": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "ReadSpecificBucket",
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::my-app-bucket",
+            "arn:aws:s3:::my-app-bucket/*"
+          ],
+          "Condition": {
+            "StringEquals": {
+              "s3:BucketOwner": "arn:aws:iam::123456789012:user/my-user"
+            }
+          }
+        }
+      ]
+    },
+    "note": "Gemma hallucinated the condition key 's3:BucketOwner' and set it to an IAM user ARN. In AWS S3, no condition key named 's3:BucketOwner' exists (valid key is 's3:ResourceAccount', which expects an AWS account ID, not an IAM user ARN). The Rego gate passed it (0 violations) because it only checks wildcard syntax. ZeroLeak's safety governor and diff tracker flag this as a synthetic placeholder requiring manual review."
   }
 }

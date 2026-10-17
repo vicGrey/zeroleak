@@ -19,32 +19,26 @@
   "conftest_gate": {
     "valid_json": true,
     "passed": false,
+    "violation_count": 2,
     "violations": [
       {
         "rule": "no_wildcard_action",
-        "message": "[Rule: no_wildcard_action] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits wildcard (*) Action. Over-privileged access violates least privilege."
+        "message": "[Rule: no_wildcard_action] Statement (Sid: 'AllowCICDDeployments') permits wildcard (*) Action. Over-privileged access violates least privilege."
       },
       {
         "rule": "no_wildcard_resource",
-        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
-      }
-    ],
-    "violation_count": 2,
-    "error": null,
-    "raw_output": [
-      {
-        "filename": "",
-        "namespace": "main",
-        "successes": 1,
-        "failures": [
-          {
-            "msg": "[Rule: no_wildcard_action] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits wildcard (*) Action. Over-privileged access violates least privilege."
-          },
-          {
-            "msg": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
-          }
-        ]
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowCICDDeployments') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
       }
     ]
+  },
+  "gemma_audit": {
+    "success": true,
+    "threat_explanation": "This policy grants high-risk administrative and privilege escalation capabilities. Combining iam:PassRole, iam:CreateAccessKey, and iam:PutUserPolicy allows an entity to attach arbitrary administrative policies to users or generate new credentials to escalate privileges across the account.",
+    "combination_risks": [
+      "iam:PassRole + iam:CreateAccessKey + iam:PutUserPolicy enables full account privilege escalation (attaching inline admin policies and generating persistent credentials)."
+    ],
+    "has_suggested_fix": true,
+    "reverification_passed": false,
+    "reverification_violation_count": 1
   }
 }

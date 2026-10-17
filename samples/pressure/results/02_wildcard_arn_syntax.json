@@ -17,25 +17,32 @@
   "conftest_gate": {
     "valid_json": true,
     "passed": false,
+    "violation_count": 1,
     "violations": [
       {
         "rule": "no_wildcard_resource",
-        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'OverpermissiveObjectAccess', Action: 's3:GetObject, s3:PutObject') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
-      }
-    ],
-    "violation_count": 1,
-    "error": null,
-    "raw_output": [
-      {
-        "filename": "",
-        "namespace": "main",
-        "successes": 2,
-        "failures": [
-          {
-            "msg": "[Rule: no_wildcard_resource] Statement (Sid: 'OverpermissiveObjectAccess', Action: 's3:GetObject, s3:PutObject') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
-          }
-        ]
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'OverpermissiveObjectAccess') permits wildcard object resource ('arn:aws:s3:::*/*'). S3 object resources must scope bucket namespaces explicitly."
       }
     ]
+  },
+  "gemma_audit": {
+    "success": true,
+    "threat_explanation": "The resource pattern arn:aws:s3:::*/* allows read and write operations against all objects in all S3 buckets within the account.",
+    "combination_risks": [],
+    "has_suggested_fix": true,
+    "suggested_fix": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "ScopedObjectAccess",
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "Resource": "arn:aws:s3:::my-application-bucket/*"
+        }
+      ]
+    }
   }
 }
