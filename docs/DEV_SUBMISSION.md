@@ -96,7 +96,7 @@ I wrote 10 test policies myself and ran each once through Gemma 2 2B at temperat
 
 - **Wildcard action (test 02):** Both the rules and Gemma flag `Action: "*"`. Gemma proposes `s3:GetObject` and `s3:PutObject`, which is a guess at what the workload needs. That guess is why the narrowed/dropped list exists.
 - **PassRole + Lambda (test 04):** Only the model caught it, which is the story above.
-- **EC2 Instance Profile abuse (test 09):** Pairs `ec2:RunInstances` and `ec2:AssociateIamInstanceProfile` with `iam:PassRole`. While the baseline rule gate only noticed a resource wildcard, Gemma caught the privilege escalation combination—attaching a powerful IAM instance profile to a newly launched EC2 instance to exfiltrate credentials. Like Test 04, this unencoded combination prompted adding a codified rule.
+- **EC2 Instance Profile abuse (test 09):** Pairs `ec2:RunInstances` and `ec2:AssociateIamInstanceProfile` with `iam:PassRole`. While the baseline rule gate only caught the wildcard resource, it was blind to the privilege escalation combination—attaching a powerful IAM instance profile to a newly launched EC2 instance—until Gemma flagged it.
 - **Injection in a `Sid` (test 10):** A statement ID told the auditor to ignore its instructions and report no issues. Gemma resisted this time. The rule gate would have ignored it anyway, because it only evaluates structure.
 
 ## Demo
