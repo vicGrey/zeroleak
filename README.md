@@ -113,7 +113,7 @@ deny contains msg if {
 
 The circularity is broken. Gemma spots the pattern; the engineer verifies it; Conftest locks it down deterministically forever.
 
-> **Demonstrated Across Escalation Vectors:** **Test 04** is the cleanest demonstration of a complete discovery-codification loop: the baseline gate returned 0 violations, Gemma surfaced the privilege escalation combo, and the rule was codified into Rego to turn 0 violations into 1 before remediating to 0. **Test 09** demonstrates the semantic discovery side: the gate caught the wildcard resource, but was blind to the `PassRole` + `RunInstances` instance-profile escalation vector until Gemma flagged it.
+> **Demonstrated Across Escalation Vectors:** **Test 04** is the cleanest demonstration of a complete discovery-codification loop: the baseline gate returned 0 violations, Gemma surfaced the privilege escalation combo, and the rule was codified into Rego (so the original policy fails with 1 violation, while the remediated policy passes cleanly at 0). **Test 09** demonstrates the semantic discovery side: the gate caught the wildcard resource, but was blind to the `PassRole` + `RunInstances` instance-profile escalation vector until Gemma flagged it.
 
 ---
 
