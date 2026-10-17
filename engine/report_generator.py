@@ -105,13 +105,32 @@ def generate_markdown_report(
             lines.append(f"> [!WARNING]  \n> {w}\n")
 
     # Suggested Fix
-    if opa_passed:
+    if opa_passed and not combos:
         lines.extend([
             f"## 5. Remediation Status",
             f"",
-            f"🛡️ **Clean Policy Preserved Intact:** The policy passed all deterministic security checks with 0 violations. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.",
+            f"🛡️ **Clean Policy Preserved Intact:** The policy passed all deterministic security checks and no combination risks were identified. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.",
             f"",
         ])
+    elif opa_passed and combos:
+        lines.extend([
+            f"## 5. Remediation Status (Unencoded Risks Spotted)",
+            f"",
+            f"⚠️ **Manual Review Recommended:** The policy passed active deterministic rules (0 violations), but local model reasoning flagged potential privilege escalation / combination risks. Per the ZeroLeak Discovery Loop, review these findings and consider codifying this pattern into a new Rego rule.",
+            f"",
+        ])
+        if suggested_fix:
+            fix_json_str = json.dumps(suggested_fix, indent=2)
+            lines.extend([
+                f"### Advisory Proposed Remediation (Discovery Loop)",
+                f"",
+                f"{fix_explanation}",
+                f"",
+                f"```json",
+                f"{fix_json_str}",
+                f"```",
+                f"",
+            ])
     elif suggested_fix:
         fix_json_str = json.dumps(suggested_fix, indent=2)
         lines.extend([
@@ -548,13 +567,19 @@ def generate_html_report(
 {"""
 <h2>5. Remediation Status</h2>
 <div class="callout callout-pass">
-    <strong>🛡️ Clean Policy Preserved Intact:</strong> The policy passed all deterministic security checks with 0 violations. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.
+    <strong>🛡️ Clean Policy Preserved Intact:</strong> The policy passed all deterministic security checks and no combination risks were identified. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.
 </div>
-""" if opa_passed else (f"""
+""" if (opa_passed and not combos) else (f"""
+<h2>5. Remediation Status (Unencoded Risks Spotted)</h2>
+<div class="callout callout-warn">
+    <strong>⚠️ Manual Review Recommended:</strong> The policy passed active deterministic rules (0 violations), but local model reasoning flagged potential privilege escalation / combination risks. Per the ZeroLeak Discovery Loop, review these findings and consider codifying this pattern into a new Rego rule.
+</div>
+{('<div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>' + html.escape(fix_json_str) + '</code></pre></div>') if fix_json_str else ''}
+""" if (opa_passed and combos) else (f"""
 <h2>5. Proposed Least-Privilege Remediation Policy</h2>
 <p style="color: #334155; font-size: 8.5pt;">{html.escape(fix_explanation)}</p>
 <div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>{html.escape(fix_json_str)}</code></pre></div>
-""" if suggested_fix else "")}
+""" if suggested_fix else "")) }
 
 </div>
 </body>

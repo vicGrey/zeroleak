@@ -581,10 +581,16 @@ def main():
             suggested_fix = None
 
             # SAFETY GOVERNOR:
-            # Only trigger automated remediation if Layer 1 actually flagged violations.
-            # If the policy is already compliant (0 violations), we NEVER mutate working code!
-            if not opa_res["passed"]:
-                st.write("🛠️ **[Stage 3/5] Scoped Remediation** — Generating least-privilege fix for violations...")
+            # Trigger remediation if deterministic gate failed OR if local intelligence flagged unencoded combo risks.
+            # If the policy is genuinely compliant (0 OPA violations AND 0 combo risks), code is preserved intact!
+            has_combos = bool(gemma_res and gemma_res.get("combination_risks"))
+            should_remediate = (not opa_res["passed"]) or has_combos
+
+            if should_remediate:
+                if not opa_res["passed"]:
+                    st.write("🛠️ **[Stage 3/5] Scoped Remediation** — Generating least-privilege fix for violations...")
+                else:
+                    st.write("🔍 **[Stage 3/5] Discovery Loop Remediation** — Policy passed rule gate, but unencoded combo risks were spotted. Generating advisory fix...")
                 progress_bar.progress(80, text="[Stage 3/5] Generating Scoped Remediation...")
                 suggested_fix = gemma_res.get("suggested_fix")
                 if suggested_fix:
@@ -603,7 +609,7 @@ def main():
                 else:
                     st.write("   ↳ No remediation policy proposed.")
             else:
-                st.write("🛡️ **[Stages 3-5 Guardrail] Safety Governor Active** — Policy passed deterministic gate. Code preserved intact.")
+                st.write("🛡️ **[Stages 3-5 Guardrail] Safety Governor Active** — Policy passed deterministic gate with 0 violations and no combination risks. Code preserved intact.")
                 progress_bar.progress(95, text="[Safety Governor] Code preserved intact.")
 
             total_elapsed = round(time.time() - t0, 2)
