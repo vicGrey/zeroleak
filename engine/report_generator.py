@@ -1,6 +1,6 @@
 import datetime
-import html
 import json
+from html import escape as html_escape
 from typing import Any, Dict, List, Optional
 
 
@@ -227,7 +227,7 @@ def generate_html_report(
 
     fix_json_str = json.dumps(suggested_fix, indent=2) if suggested_fix else ""
 
-    html = f"""<!DOCTYPE html>
+    doc_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -574,18 +574,18 @@ def generate_html_report(
 <div class="callout callout-warn">
     <strong>⚠️ Manual Review Recommended:</strong> The policy passed active deterministic rules (0 violations), but local model reasoning flagged potential privilege escalation / combination risks. Per the ZeroLeak Discovery Loop, review these findings and consider codifying this pattern into a new Rego rule.
 </div>
-{('<div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>' + html.escape(fix_json_str) + '</code></pre></div>') if fix_json_str else ''}
+{(f'<p style="color: #334155; font-size: 8.5pt;">{html_escape(fix_explanation)}</p><div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>' + html_escape(fix_json_str) + '</code></pre></div>') if fix_json_str else ''}
 """ if (opa_passed and combos) else (f"""
 <h2>5. Proposed Least-Privilege Remediation Policy</h2>
-<p style="color: #334155; font-size: 8.5pt;">{html.escape(fix_explanation)}</p>
-<div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>{html.escape(fix_json_str)}</code></pre></div>
+<p style="color: #334155; font-size: 8.5pt;">{html_escape(fix_explanation)}</p>
+<div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>{html_escape(fix_json_str)}</code></pre></div>
 """ if suggested_fix else "")) }
 
 </div>
 </body>
 </html>
 """
-    return html
+    return doc_html
 
 
 def generate_pdf_report(
@@ -881,7 +881,7 @@ def generate_plan_html_report(
         </div>
         """
 
-    html = f"""<!DOCTYPE html>
+    plan_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1241,7 +1241,7 @@ def generate_plan_html_report(
 </body>
 </html>
 """
-    return html
+    return plan_html
 
 
 def generate_plan_pdf_report(
