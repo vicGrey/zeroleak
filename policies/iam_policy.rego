@@ -3,7 +3,7 @@ import rego.v1
 
 # -----------------------------------------------------------------------------
 # ZeroLeak AI — Deterministic Policy Gate
-# Ported and expanded from Viktor Okoroafor's AWS Serverless Zero-Trust Governance FYP
+# Ported and expanded from Victor Okoroafor's AWS Serverless Zero-Trust Governance FYP
 # Repo: https://github.com/vicGrey/aws-serverless-zero-trust-governance
 # -----------------------------------------------------------------------------
 
@@ -114,4 +114,15 @@ deny contains msg if {
     stmt.Effect == "Allow"
     stmt.NotAction != ""
     msg := sprintf("[Rule: no_notaction_allow] Statement (Sid: '%s') uses 'NotAction' with 'Effect: Allow'. This grants all AWS actions except the excluded list, creating massive privilege escalation risk.", [get_sid(stmt)])
+}
+
+# Rule 4: Deny PassRole paired with lambda:CreateFunction (Privilege Escalation Discovery Loop)
+deny contains msg if {
+    some s1 in get_statements
+    s1.Effect == "Allow"
+    has_action(s1, "iam:PassRole")
+    some s2 in get_statements
+    s2.Effect == "Allow"
+    has_action(s2, "lambda:CreateFunction")
+    msg := "[Rule: passrole_lambda_escalation] PassRole paired with lambda:CreateFunction allows privilege escalation via role assumption."
 }

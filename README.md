@@ -134,7 +134,7 @@ I wrote 10 policies targeting common IAM mistakes and ran each through Gemma 2 2
 > - **Latency:** on a consumer CPU with no GPU, Gemma 2 2B had a **mean of 52.2s** per policy (**39.0s to 67.3s**).
 > - **Variance:** one pass per policy. Outputs can vary between runs, sampling settings and hardware.
 > - **Discovery evidence:** Gemma flagged unencoded combinations in two policies (04 and 09). That is small-n evidence (n=2) from a suite I wrote, not a statistical detection rate.
-> - **Note on 'Preserved Intact':** In this recorded benchmark run and in our pressure tests, Gemma flagged combination risks across all test policies (including our clean control and read-only test), routing both to Manual Review. ZeroLeak's 'Preserved Intact' outcome (triggered when both gate and model report 0 findings) was designed for compliant configurations, but in this benchmark run Gemma over-flagged, so no benchmark test demonstrates an autonomous clean pass through both engines.
+> - **Note on 'Preserved Intact':** In this run, Gemma flagged combination risks on every policy, including the clean control (Test 01) and the clean read-only pressure test. Both went to Manual Review, so no test here shows a clean pass through both engines.
 > - Raw logs, including the before/after loop on Test 04, are in [`samples/results/`](samples/results/).
 
 ### Pressure test: three fresh policies
@@ -254,7 +254,8 @@ zeroleak/
 │   ├── pressure/               # 3 pressure-test policies + raw evaluation logs
 │   └── results/                # Raw benchmark logs
 ├── docs/
-│   └── ARCHITECTURE_PLAN.md    # Original engineering notes
+│   ├── ARCHITECTURE_PLAN.md    # Original engineering notes
+│   └── DEV_SUBMISSION.md       # DEV Hacktoberfest submission article
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
