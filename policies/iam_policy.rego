@@ -17,6 +17,16 @@ has_wildcard_action(field) if {
     contains(field[_], "*")
 }
 
+# Helper to check if a statement permits a specific action
+has_action(stmt, action) if {
+    is_string(stmt.Action)
+    stmt.Action == action
+}
+has_action(stmt, action) if {
+    is_array(stmt.Action)
+    stmt.Action[_] == action
+}
+
 # Helper to check if a Resource field permits unrestricted wildcard ('*')
 has_wildcard_resource(field) if {
     is_string(field)
