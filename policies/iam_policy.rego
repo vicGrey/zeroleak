@@ -27,7 +27,7 @@ has_action(stmt, action) if {
     stmt.Action[_] == action
 }
 
-# Helper to check if a Resource field permits unrestricted wildcard ('*')
+# Helper to check if a Resource field permits unrestricted wildcard ('*' or global ARN wildcards)
 has_wildcard_resource(field) if {
     is_string(field)
     field == "*"
@@ -35,6 +35,32 @@ has_wildcard_resource(field) if {
 has_wildcard_resource(field) if {
     is_array(field)
     field[_] == "*"
+}
+# Flag unconstrained S3 bucket wildcards: arn:aws:s3:::* or arn:aws:s3:::*/*
+has_wildcard_resource(field) if {
+    is_string(field)
+    field == "arn:aws:s3:::*"
+}
+has_wildcard_resource(field) if {
+    is_string(field)
+    field == "arn:aws:s3:::*/*"
+}
+has_wildcard_resource(field) if {
+    is_array(field)
+    field[_] == "arn:aws:s3:::*"
+}
+has_wildcard_resource(field) if {
+    is_array(field)
+    field[_] == "arn:aws:s3:::*/*"
+}
+# Flag global all-service wildcard ARNs: arn:aws:*:*:*:*
+has_wildcard_resource(field) if {
+    is_string(field)
+    field == "arn:aws:*:*:*:*"
+}
+has_wildcard_resource(field) if {
+    is_array(field)
+    field[_] == "arn:aws:*:*:*:*"
 }
 
 # Helper to safely retrieve Sid or fallback to 'Unassigned'

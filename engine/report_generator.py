@@ -1,4 +1,5 @@
 import datetime
+import html
 import json
 from typing import Any, Dict, List, Optional
 
@@ -104,7 +105,14 @@ def generate_markdown_report(
             lines.append(f"> [!WARNING]  \n> {w}\n")
 
     # Suggested Fix
-    if suggested_fix:
+    if opa_passed:
+        lines.extend([
+            f"## 5. Remediation Status",
+            f"",
+            f"🛡️ **Clean Policy Preserved Intact:** The policy passed all deterministic security checks with 0 violations. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.",
+            f"",
+        ])
+    elif suggested_fix:
         fix_json_str = json.dumps(suggested_fix, indent=2)
         lines.extend([
             f"## 5. Proposed Remediation Policy (Least-Privilege)",
@@ -537,11 +545,16 @@ def generate_html_report(
     {"".join(f'<span class="perm-pill dropped">✕ {act}</span>' for act in dropped) if dropped else '<span style="color: #64748b;">None</span>'}
 </div>
 
-{warnings_html}
-
-{"<h2>5. Proposed Least-Privilege Remediation Policy</h2>" if suggested_fix else ""}
-{"<p style=\'color: #334155; font-size: 8.5pt;\'>" + fix_explanation + "</p>" if fix_explanation else ""}
-{f'<div class="code-box">{fix_json_str}</div>' if fix_json_str else ""}
+{"""
+<h2>5. Remediation Status</h2>
+<div class="callout callout-pass">
+    <strong>🛡️ Clean Policy Preserved Intact:</strong> The policy passed all deterministic security checks with 0 violations. Per ZeroLeak's safety governor, compliant configurations are preserved intact to prevent breaking working application runtimes.
+</div>
+""" if opa_passed else (f"""
+<h2>5. Proposed Least-Privilege Remediation Policy</h2>
+<p style="color: #334155; font-size: 8.5pt;">{html.escape(fix_explanation)}</p>
+<div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>{html.escape(fix_json_str)}</code></pre></div>
+""" if suggested_fix else "")}
 
 </div>
 </body>

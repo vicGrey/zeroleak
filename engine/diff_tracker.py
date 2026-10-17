@@ -139,10 +139,16 @@ def analyze_permission_diff(
             dropped.add(o_act)
 
     # If original had a wildcard like s3:* or *, note that the wildcard itself was replaced
+    wildcards_scoped = []
     for w in orig_wildcards:
         if w not in fix_actions:
-            # Wildcard was successfully replaced by scoped actions
-            pass
+            wildcards_scoped.append(w)
+
+    if wildcards_scoped:
+        warnings.append(
+            f"WILDCARD NARROWING: Unrestricted wildcard(s) {', '.join(sorted(wildcards_scoped))} were scoped to {len(narrowed)} specific verb(s). "
+            f"All other implicit API actions in these namespaces were removed."
+        )
 
     # Guardrails: Deny statements
     deny_dropped = len(orig_meta["deny_statements"]) > len(fix_meta["deny_statements"])
@@ -204,6 +210,7 @@ def analyze_permission_diff(
         "human_approval_required": human_approval_required,
         "retained": sorted(list(retained)),
         "narrowed": sorted(list(narrowed)),
+        "wildcards_scoped": sorted(wildcards_scoped),
         "dropped": sorted(list(dropped)),
         "added": sorted(list(added)),
         "warnings": warnings,
