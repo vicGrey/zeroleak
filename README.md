@@ -134,6 +134,7 @@ I wrote 10 policies targeting common IAM mistakes and ran each through Gemma 2 2
 > - **Latency:** on a consumer CPU with no GPU, Gemma 2 2B had a **mean of 52.2s** per policy (**39.0s to 67.3s**).
 > - **Variance:** one pass per policy. Outputs can vary between runs, sampling settings and hardware.
 > - **Discovery evidence:** Gemma flagged unencoded combinations in two policies (04 and 09). That is small-n evidence (n=2) from a suite I wrote, not a statistical detection rate.
+> - **Note on 'Preserved Intact':** In this recorded benchmark run and in our pressure tests, Gemma flagged combination risks across all test policies (including our clean control and read-only test), routing both to Manual Review. ZeroLeak's 'Preserved Intact' outcome (triggered when both gate and model report 0 findings) was designed for compliant configurations, but in this benchmark run Gemma over-flagged, so no benchmark test demonstrates an autonomous clean pass through both engines.
 > - Raw logs, including the before/after loop on Test 04, are in [`samples/results/`](samples/results/).
 
 ### Pressure test: three fresh policies
@@ -142,13 +143,13 @@ To evaluate behavior on unfamiliar inputs, I ran three adversarial test cases (s
 
 - **Three-Permission Escalation Triad:** Gemma flagged a policy combining `iam:PassRole`, `iam:CreateAccessKey`, and `iam:PutUserPolicy` (`01_escalation_triad.json`). This is a sanity check rather than a discovery: `CreateAccessKey` or `PutUserPolicy` alone is enough to escalate privileges, and standard scanners flag them.
 - **Wildcard ARN Syntax (`arn:aws:s3:::*/*`):** This slipped past our baseline gate (`02_wildcard_arn_syntax.json`) because it wasn't a bare `*`. The Rego ruleset was updated to explicitly catch wildcard ARN paths.
-- **Hallucinated Condition Keys:** On a clean read-only policy (`03_clean_readonly_bucket.json`), Gemma added a Condition: `"s3:BucketOwner": "arn:aws:iam::123456789012:user/my-user"`. In AWS S3, no condition key named `s3:BucketOwner` exists (the official key is `s3:ResourceAccount`, which takes a 12-digit account ID, not an IAM user ARN). An IAM condition on an undefined key never matches, so the Allow would silently fail. The rule gate passed it because it only checks for wildcards. That is why disagreements now route to **Manual Review Recommended**.
+- **Hallucinated Condition Keys:** On a clean read-only policy (`03_clean_readonly_bucket.json`), Gemma added a Condition: `"s3:BucketOwner": "arn:aws:iam::123456789012:user/my-user"`. In AWS S3, a valid condition key for checking bucket ownership is `s3:ResourceAccount` (which takes a 12-digit account ID, not an IAM user ARN), not `s3:BucketOwner`. An IAM condition on an undefined key never matches, so the Allow would silently fail. The rule gate passed it because it only checks for wildcards. That is why disagreements now route to **Manual Review Recommended**.
 
 ---
 
 ## 🧪 Case Study: A Real Terraform Plan
 
-I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi off. Details and screenshots are in the [DEV write-up](https://dev.to/challenges/hacktoberfest-week2-2026-10-12).
+I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi off. Details and screenshots are in my [DEV write-up](#) *(URL to be updated upon publication)*.
 
 - **Time:** 102.29s on a laptop CPU.
 - **IAM policy documents found:** 10. Five passed the gate, two failed, and three had no readable text at plan time (interpolated values like a table ARN or a login pool).
@@ -266,8 +267,7 @@ zeroleak/
 
 - **The gate only proves your rules.** Zero violations means zero violations of the active ruleset, not that a policy is safe. The PassRole rule above is deliberately coarse and would flag a legitimately scoped deployer role. A production rule should inspect `Resource` and require an `iam:PassedToService` condition.
 - **A re-verification pass is weak.** It only confirms the fix doesn't trip the rules. It does not check that an ARN is valid or that the workload still works.
-- **Small models invent things.** Gemma proposed fake ARNs, dropped required actions (`logs:PutLogEvents`), and added a nonexistent condition key (`s3:BucketOwner`). Every proposed fix needs human review against the AWS Service Authorization Reference.
-- **Model variance & measured false positives.** Generative open-weight models exhibit variance. In Test 01 (our clean control policy), Gemma flagged standard CloudWatch logging combined with read-only S3 access as two combination hazards. This is our first measured false positive, demonstrating why ZeroLeak routes disagreements to Manual Review and preserves compliant code intact via the safety governor.
+- **Output variance and measured false positives.** On the clean control (Test 01), Gemma flagged two combination risks in the current benchmark run, and the pipeline routed it to Manual Review. An earlier run reported 0 risks for the same policy, so results vary across runs or versions; I did not isolate the cause. This is my first measured false positive.
 - **Human in the loop.** All production permission changes need peer review before deployment.
 - **One policy at a time.** Real escalation often spans several policies attached to one identity. Tools like PMapper and IAM Access Analyzer cover that, and ZeroLeak doesn't replace them.
 - **Discovery evidence is small.** Gemma flagged unencoded combinations in Tests 04 and 09 (n=2, authored by me). It cannot be assumed to find escalation chains reliably without a larger, independent test set.
