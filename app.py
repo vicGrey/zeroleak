@@ -905,6 +905,11 @@ def main():
 
                     st.markdown("#### Proposed Policy JSON")
                     st.json(suggested_fix)
+                    st.caption(
+                        "ℹ️ **Production Advisory:** ZeroLeak operates strictly offline without credentials to your live AWS account. "
+                        "Remediated policies frequently introduce synthetic placeholder account IDs (e.g. `123456789012`), placeholder identities (e.g. `my-user`), "
+                        "and generic resource paths. Prior to deployment, replace placeholders with actual AWS resource ARNs and verify workload compatibility."
+                    )
                 else:
                     st.info("No suggested fix generated (Ollama offline or model output failed JSON parse).")
 

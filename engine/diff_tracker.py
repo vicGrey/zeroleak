@@ -203,7 +203,33 @@ def analyze_permission_diff(
             "Changing service principals (e.g. 'lambda.amazonaws.com') will prevent AWS services from assuming this role!"
         )
 
-    human_approval_required = bool(dropped or added or deny_dropped or notaction_flagged or principal_altered)
+    # Guardrails: Synthetic Placeholder Detection (e.g. 123456789012, my-user, my-bucket)
+    fix_raw_str = json.dumps(fix).lower()
+    placeholders_detected = []
+    known_placeholders = [
+        "123456789012",
+        "my-bucket",
+        "my-user",
+        "my-role",
+        "my-queue",
+        "my-topic",
+        "example-bucket",
+        "test-bucket",
+        "your_account_id",
+        "<account_id>",
+    ]
+    for ph in known_placeholders:
+        if ph in fix_raw_str:
+            placeholders_detected.append(ph)
+
+    if placeholders_detected:
+        warnings.append(
+            f"SYNTHETIC PLACEHOLDERS DETECTED: Proposed remediation introduces placeholder identifiers "
+            f"({', '.join(sorted(placeholders_detected))}). Because ZeroLeak operates offline without live AWS inventory access, "
+            f"you must parameterize these placeholders with your actual AWS account ID, target resource ARNs, and valid condition keys before deployment."
+        )
+
+    human_approval_required = bool(dropped or added or deny_dropped or notaction_flagged or principal_altered or placeholders_detected)
 
     return {
         "error": None,

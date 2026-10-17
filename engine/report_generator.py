@@ -37,7 +37,7 @@ def generate_markdown_report(
     reverify_status = "N/A"
     if reverification_results:
         reverify_passed = reverification_results.get("passed", False)
-        reverify_status = "PASSED (0 violations)" if reverify_passed else f"FAILED ({reverification_results.get('violation_count', 0)} violations remaining)"
+        reverify_status = "RULE GATE: PASSED (Workload & ARN validity not checked)" if reverify_passed else f"RULE GATE: FAILED ({reverification_results.get('violation_count', 0)} violations remaining)"
 
     lines = [
         f"# ZeroLeak AI — Security Audit & Remediation Deliverable",
@@ -142,6 +142,9 @@ def generate_markdown_report(
             f"{fix_json_str}",
             f"```",
             f"",
+            f"> [!IMPORTANT]  ",
+            f"> **Advisory & Offline Scope:** ZeroLeak operates strictly offline without credentials to your live AWS account. Proposed remediations frequently use synthetic placeholder account numbers (e.g. `123456789012`) and generic resource paths (e.g. `my-user`, `my-bucket`). Prior to deployment, replace placeholders with actual AWS resource ARNs and verify that scoped actions match target workload specifications.",
+            f"",
         ])
 
     lines.extend([
@@ -190,9 +193,9 @@ def generate_html_report(
     if reverification_results:
         reverify_passed = reverification_results.get("passed", False)
         reverify_status = (
-            '<span class="badge badge-pass">PASSED (0 Violations)</span>'
+            '<span class="badge badge-pass" style="font-size: 7.5pt;">RULE GATE: PASSED (Workload & ARN validity not checked)</span>'
             if reverify_passed
-            else f'<span class="badge badge-fail">FAILED ({reverification_results.get("violation_count", 0)} Remaining)</span>'
+            else f'<span class="badge badge-fail" style="font-size: 7.5pt;">RULE GATE: FAILED ({reverification_results.get("violation_count", 0)} Remaining)</span>'
         )
 
     # Render violations
@@ -574,11 +577,14 @@ def generate_html_report(
 <div class="callout callout-warn">
     <strong>⚠️ Manual Review Recommended:</strong> The policy passed active deterministic rules (0 violations), but local model reasoning flagged potential privilege escalation / combination risks. Per the ZeroLeak Discovery Loop, review these findings and consider codifying this pattern into a new Rego rule.
 </div>
-{(f'<p style="color: #334155; font-size: 8.5pt;">{html_escape(fix_explanation)}</p><div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>' + html_escape(fix_json_str) + '</code></pre></div>') if fix_json_str else ''}
+{(f'<p style="color: #334155; font-size: 8.5pt;">{html_escape(fix_explanation)}</p><div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>' + html_escape(fix_json_str) + '</code></pre></div><p style="font-size: 7.5pt; color: #64748b; margin: 6px 0 0 0; font-style: italic;">*Advisory: ZeroLeak operates strictly offline without credentials to your live AWS account. Proposed remediations frequently use synthetic placeholder account numbers (e.g., <code>123456789012</code>) and generic resource paths (e.g., <code>my-user</code>, <code>my-bucket</code>). Prior to deployment, replace placeholders with actual AWS resource ARNs and verify that scoped actions match target workload specifications.</p>') if fix_json_str else ''}
 """ if (opa_passed and combos) else (f"""
 <h2>5. Proposed Least-Privilege Remediation Policy</h2>
 <p style="color: #334155; font-size: 8.5pt;">{html_escape(fix_explanation)}</p>
 <div class="code-box"><pre style="margin: 0; font-family: monospace; font-size: 8pt; white-space: pre-wrap; word-break: break-all;"><code>{html_escape(fix_json_str)}</code></pre></div>
+<p style="font-size: 7.5pt; color: #64748b; margin: 6px 0 0 0; font-style: italic;">
+    *Advisory: ZeroLeak operates strictly offline without credentials to your live AWS account. Proposed remediations frequently use synthetic placeholder account numbers (e.g., <code>123456789012</code>) and generic resource paths (e.g., <code>my-user</code>, <code>my-bucket</code>). Prior to deployment, replace placeholders with actual AWS resource ARNs and verify that scoped actions match target workload specifications.
+</p>
 """ if suggested_fix else "")) }
 
 </div>
