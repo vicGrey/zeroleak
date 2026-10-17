@@ -217,7 +217,7 @@ ZeroLeak AI goes beyond standalone JSON files: it parses full **Terraform Plan J
 terraform plan -out=tfplan
 terraform show -json tfplan > tfplan.json
 
-# Upload tfplan.json to ZeroLeak AI's "Batch / Terraform Plan Audit" tab
+# Upload tfplan.json to ZeroLeak AI and click "Audit Entire Plan (Unified)"
 ```
 
 ZeroLeak systematically extracts all IAM policies from your plan, screening them instantaneously against the deterministic Rego gate (~20ms per policy), tracking uncomputed dynamic policies (`Known After Apply`), and dispatching only failing policies to local Gemma 2 2B for contextual threat modeling and automated remediation.
@@ -235,9 +235,9 @@ Don't take my word for it — verify ZeroLeak AI's privacy guarantee in about a 
 
 > *(Note: The initial setup step to download Docker images and model weights requires an internet connection once. Once downloaded, complete isolation is verified as follows:)*
 
-1. Launch ZeroLeak AI and load an IAM policy.
+1. Launch ZeroLeak AI and load an IAM policy or Terraform plan.
 2. **Physically disconnect your Ethernet cable or toggle Wi-Fi OFF.**
-3. Click **"Run Offline Security Audit"**.
+3. Click **"Run ZeroLeak Audit"** (or **"Audit Entire Plan (Unified)"**).
 4. Observe the complete 5-stage pipeline execute:
    - Conftest Rego checks run locally via native binary (~20ms).
    - Google Gemma 2 2B infers locally via Ollama on `localhost:11434`.
@@ -264,11 +264,10 @@ zeroleak/
 │   └── iam_policy.rego         # Modern Rego v1 deterministic security rules
 ├── samples/
 │   ├── policies/               # 10 benchmark test policies (01-10)
-│   ├── terraform/              # Sample Terraform plan with IAM resources
 │   └── results/                # Ground-truth empirical benchmark outputs
 ├── docs/
 │   ├── ARCHITECTURE_PLAN.md    # Original engineering notes & architectural plan
-│   └── DEV_SUBMISSION.md       # Draft submission article for DEV Hacktoberfest
+│   └── DEV_SUBMISSION.md       # Submission article for DEV Hacktoberfest
 ├── Dockerfile                  # Self-contained container with Conftest & WeasyPrint
 ├── docker-compose.yml          # Dual-service compose with auto-Ollama Gemma 2B setup
 ├── requirements.txt            # Python dependencies
@@ -284,7 +283,7 @@ ZeroLeak AI is built on honest security engineering:
 - **Human-in-the-Loop:** While Gemma 2 2B generates scoped least-privilege suggestions, all production permission alterations must undergo peer review prior to deployment.
 - **Single-Policy Scope:** ZeroLeak audits policies on a per-policy / per-statement level. Real-world AWS privilege escalation often spans multiple distinct managed or inline policies attached to the same IAM role, group, or identity. Cross-policy aggregation and effective identity permission graph mapping require dedicated multi-policy traversal tools like PMapper.
 - **Discovery Evidence Scope:** While Gemma 2 2B successfully flagged the PassRole + Lambda escalation combination without a pre-existing rule in our test suite (n=1), a 2B parameter model cannot be assumed to reliably catch all multi-permission escalation chains without dedicated benchmark verification across broader attack corpuses.
-- **False Positive Limits:** False-positive rates were not formally measured against large real-world production policy corpuses (e.g., broad AWS-managed policies). Baseline control testing was conducted on simple, scoped policies.
+- **Real-World False Positives & Service Constraints:** As revealed in our live Terraform plan audit, AWS APIs frequently mandate wildcard resources for actions that do not support resource-level permissions (e.g., `config:PutEvaluations`). LLMs prompted to eliminate wildcards will attempt to invent scoped ARNs or omit necessary actions (e.g., dropping `logs:PutLogEvents`), reinforcing why automated remediations require manual review against AWS Service Authorization references.
 - **Resource Scope:** When generic wildcard resources (`Resource: "*"`) are remediated without access to an active AWS account's live inventory, ZeroLeak prompts the operator with standardized, parameterized ARN templates (e.g. `arn:aws:s3:::my-bucket/*`).
 - **Complementary to Deep Analysis Tools:** A 2B parameter model running locally is an effective quick-audit scout for common privilege escalation chains, but it is not a substitute for deep graph-traversal security tools like PMapper or AWS IAM Access Analyzer.
 - **Attribution & Prior Research:** Foundational wildcard Rego patterns were adapted and expanded from my prior academic research in serverless zero-trust governance ([aws-serverless-zero-trust-governance](https://github.com/vicGrey/aws-serverless-zero-trust-governance)).
