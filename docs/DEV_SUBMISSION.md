@@ -68,9 +68,9 @@ Synthetic tests only prove so much, so I ran ZeroLeak on a 48-resource Terraform
 
 ### Three policies had no readable text
 
-In a Terraform plan, a policy that interpolates values created at apply time (a DynamoDB table ARN, a Cognito pool, a bucket name) shows up as unknown, not as JSON. A scanner that treats unknown as "nothing to flag" reports a clean result for policies it never read. In my plan that was three policies, including the DynamoDB and Cognito ones. ZeroLeak now lists them in the report as `NOT EVALUATED: policy text unknown at plan time`, so the client gets a checklist for after apply instead of false reassurance. I only tested my own tool, so I can't say how other scanners handle this.
+In a Terraform plan, a policy that interpolates values created at apply time (a DynamoDB table ARN, a Cognito pool, a bucket name) shows up as unknown, not as JSON. A scanner that treats unknown as "nothing to flag" reports a clean result for policies it never read. In my plan that was three policies, including the DynamoDB and Cognito ones. ZeroLeak now lists them in the report as `NOT EVALUATED` (`KNOWN AFTER APPLY`), so the client gets a checklist for after apply instead of false reassurance. I only tested my own tool, so I can't say how other scanners handle this.
 
-[SCREENSHOT: the NOT EVALUATED rows in the final PDF]
+[SCREENSHOT: the NOT EVALUATED / KNOWN AFTER APPLY rows in the final PDF]
 
 ### Both fixes passed the gate, and both were wrong
 
