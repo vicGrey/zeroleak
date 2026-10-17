@@ -147,6 +147,7 @@ While newer and larger models exist (including Gemma 3), I deliberately selected
 1. **Consumer Hardware Accessibility:** Gemma 2 2B is a ~1.6 GB download that runs comfortably in ~3–4 GB of system RAM on a standard laptop CPU without requiring a discrete Nvidia GPU.
 2. **Schema Adherence with Guardrails:** For single-turn structured JSON auditing and remediation, Gemma 2 2B usually respects schema constraints. When occasional model truncation occurs on complex policies, ZeroLeak's Stage 3 fallback sanitizers safely repair trailing JSON tokens.
 3. **Zero Barrier to Entry:** A freelance security consultant can run ZeroLeak on a standard work laptop in an airplane, client office, or coffee shop without thermal throttling, cloud API bills, or enterprise licensing.
+4. **Model-Agnostic Decoupling:** The Ollama inference layer is completely decoupled. Consultants running on Apple Silicon or discrete GPUs can switch to larger models like `gemma2:9b` or future Gemma releases simply by changing the model tag in Ollama.
 
 ---
 

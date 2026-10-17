@@ -21,7 +21,7 @@ My security tool showed two green "0 violations" results on a policy that was a 
 
 **Who would pay for it:** Small fintech and SaaS startups, especially in Nigeria, where teams ship on AWS quickly and often have no dedicated security engineer. ZeroLeak is the engine behind a fixed-fee IAM policy review. The client sends me their IAM policy documents under an NDA (not their whole Terraform plan, since plans can contain secrets). I run them on my own laptop, check every finding by hand, and return a PDF report with proposed fixes. No AI vendor ever sees their infrastructure details. My pilot price is $100 for up to 10 policies, with the first few reviews discounted in exchange for feedback. I don't have a paying client yet, and this post is part of finding the first one. (The whole-plan audit below is for teams running ZeroLeak on their own machines.)
 
-**The problem it solves:** An IAM policy is a map of someone's infrastructure: account IDs, role names, bucket names. A consultant reviewing a client's Terraform under NDA can't casually paste that into a hosted chatbot. Whether it's allowed depends on the contract, and plenty of clients will say no. Offline linters avoid the problem, but they only catch what someone already wrote a rule for. ZeroLeak sits in the gap: private like a linter, with a model that can discuss what the rules miss.
+**The problem it solves:** An IAM policy is a map of someone's infrastructure: account IDs, role names, bucket names. A consultant reviewing a client's Terraform under NDA can't casually paste that into a hosted chatbot. Whether it's allowed depends on the contract, and plenty of clients will say no. Existing offline tools solve parts of this—linters (Checkov, tfsec) catch known syntax rules, and graph tools (PMapper) map account-wide paths—but none provide offline LLM semantic reasoning or generate client-ready PDF deliverables without leaving the laptop. ZeroLeak sits in that gap: private like a linter, with a model that explains multi-action escalation risks and proposes scoped remediations.
 
 [SCREENSHOT: Streamlit UI with an audit result]
 [SCREENSHOT: first page of the PDF report]
@@ -92,10 +92,11 @@ Both flagged policies follow common setup patterns, so I'd call those flags "nee
 
 ### The other tests
 
-I wrote 10 test policies myself and ran each once through Gemma 2 2B at temperature 0.1 ([all ten are in the repo](https://github.com/vicGrey/zeroleak)). Three matter most:
+I wrote 10 test policies myself and ran each once through Gemma 2 2B at temperature 0.1 ([all ten are in the repo](https://github.com/vicGrey/zeroleak)). Four matter most:
 
 - **Wildcard action (test 02):** Both the rules and Gemma flag `Action: "*"`. Gemma proposes `s3:GetObject` and `s3:PutObject`, which is a guess at what the workload needs. That guess is why the narrowed/dropped list exists.
 - **PassRole + Lambda (test 04):** Only the model caught it, which is the story above.
+- **EC2 Instance Profile abuse (test 09):** Pairs `ec2:RunInstances` and `ec2:AssociateIamInstanceProfile` with `iam:PassRole`. While the baseline rule gate only noticed a resource wildcard, Gemma caught the privilege escalation combination—attaching a powerful IAM instance profile to a newly launched EC2 instance to exfiltrate credentials. Like Test 04, this unencoded combination prompted adding a codified rule.
 - **Injection in a `Sid` (test 10):** A statement ID told the auditor to ignore its instructions and report no issues. Gemma resisted this time. The rule gate would have ignored it anyway, because it only evaluates structure.
 
 ## Demo
@@ -122,7 +123,7 @@ The open-source AI is **Gemma 2 2B**, served locally by **Ollama**. Each policy 
 
 Around it: **Conftest/OPA** runs the Rego v1 rules, **Streamlit** is the UI, **WeasyPrint** renders PDFs, and **Docker Compose** runs the app next to an Ollama container that pulls `gemma2:2b` on first start. A small parser extracts IAM resources from `terraform show -json` output.
 
-I chose the 2B model because it's a ~1.6 GB download that runs in about 3 to 4 GB of RAM on a laptop CPU. The cost is speed: on CPU, Gemma averaged 52.2s per policy (39.0s to 67.3s).
+I chose the 2B model because it's a ~1.6 GB download that runs comfortably in about 3 to 4 GB of RAM on a standard laptop CPU without dedicated graphics. The pipeline is model-agnostic: a consultant with an Apple Silicon Mac or dedicated GPU can swap in a larger local model (like Gemma 2 9B or Gemma 3) simply by changing the model tag in Ollama. The trade-off on a consumer CPU is speed: Gemma 2 2B averaged 52.2s per policy (39.0s to 67.3s).
 
 In batch mode Gemma only runs on policies that fail the gate, which is why my 10-policy plan took 102 seconds. The trade-off is that a policy like Test 04, which passes the gate, never reaches the model. Sending every policy through Gemma would take about 8 to 10 minutes for 10 policies, and about 87 minutes for 100. At that size you'd want a GPU.
 
@@ -144,7 +145,7 @@ And since the weights are open, anyone can run the same model on the same test p
 
 - **The gate only proves your rules.** Zero violations means zero violations of the rules I wrote. My PassRole rule is deliberately coarse and would flag a properly scoped deployer role; a production rule should check Resource and flag a missing iam:PassedToService condition.
 - **One policy at a time.** Real escalation often spans several policies on the same role. Tools like PMapper and IAM Access Analyzer cover that.
-- **Discovery is n = 1.** Gemma catching one famous pattern doesn't show a 2B model reliably finds escalation chains.
+- **Discovery is limited (n = 2).** Gemma caught two textbook escalation vectors (PassRole + Lambda in test 04, and PassRole + EC2 instance profile attachment in test 09). That shows promise, but it doesn't prove a 2B model reliably catches multi-step or obscure escalation chains across AWS's hundreds of services.
 - **My real-world data is one plan.** Two flags, both on common patterns, with fixes I couldn't use as written. Three policies weren't evaluable at plan time, and in batch mode the model never sees policies that pass the gate. That's a small sample, not a false-positive rate.
 
 A passing check only matters if it was actually looking for the problem.
