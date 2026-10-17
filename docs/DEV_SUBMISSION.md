@@ -38,7 +38,7 @@ My first pipeline did this:
 3. Gemma wrote a scoped fix.
 4. Conftest checked the fix: **0 violations.**
 
-It looked like Gemma had caught what the linter missed and the linter had confirmed the fix. But when I reviewed the pipeline closely, I caught the circularity: my ruleset only checked for wildcards. It had never tested for PassRole + Lambda, so the fix passed because the gate wasn't looking. A broken fix would have passed too.
+It looked like Gemma had caught what the linter missed and the linter had confirmed the fix. But a review of my initial test results pointed out the flaw in my logic: that verification was completely circular. My ruleset only checked for wildcards. It had never tested for PassRole + Lambda, so the fix passed because the gate wasn't looking. A broken fix would have passed too.
 
 That changed how ZeroLeak verifies its fixes. The model and the gate now work as a loop:
 
@@ -149,6 +149,4 @@ And since the weights are open, anyone can run the same model on the same test p
 A passing check only matters if it was actually looking for the problem.
 
 ## Prize Categories
-
-- **Best Use of Gemma ($200)**
-- **Overall Submissions ($250)**
+- Best Use of Gemma
