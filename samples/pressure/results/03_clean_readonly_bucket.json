@@ -1,0 +1,34 @@
+{
+  "policy_file": "03_clean_readonly_bucket.json",
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ReadSpecificBucket",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::my-app-bucket",
+          "arn:aws:s3:::my-app-bucket/*"
+        ]
+      }
+    ]
+  },
+  "conftest_gate": {
+    "valid_json": true,
+    "passed": true,
+    "violations": [],
+    "violation_count": 0,
+    "error": null,
+    "raw_output": [
+      {
+        "filename": "",
+        "namespace": "main",
+        "successes": 3
+      }
+    ]
+  }
+}

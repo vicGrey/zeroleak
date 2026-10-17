@@ -1,0 +1,50 @@
+{
+  "policy_file": "01_escalation_triad.json",
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowCICDDeployments",
+        "Effect": "Allow",
+        "Action": [
+          "iam:PassRole",
+          "iam:CreateAccessKey",
+          "iam:PutUserPolicy",
+          "s3:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "conftest_gate": {
+    "valid_json": true,
+    "passed": false,
+    "violations": [
+      {
+        "rule": "no_wildcard_action",
+        "message": "[Rule: no_wildcard_action] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits wildcard (*) Action. Over-privileged access violates least privilege."
+      },
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ],
+    "violation_count": 2,
+    "error": null,
+    "raw_output": [
+      {
+        "filename": "",
+        "namespace": "main",
+        "successes": 1,
+        "failures": [
+          {
+            "msg": "[Rule: no_wildcard_action] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits wildcard (*) Action. Over-privileged access violates least privilege."
+          },
+          {
+            "msg": "[Rule: no_wildcard_resource] Statement (Sid: 'AllowCICDDeployments', Action: 'iam:PassRole, iam:CreateAccessKey, ... (+2 more)') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "policy_file": "02_wildcard_arn_syntax.json",
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "OverpermissiveObjectAccess",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:PutObject"
+        ],
+        "Resource": "arn:aws:s3:::*/*"
+      }
+    ]
+  },
+  "conftest_gate": {
+    "valid_json": true,
+    "passed": false,
+    "violations": [
+      {
+        "rule": "no_wildcard_resource",
+        "message": "[Rule: no_wildcard_resource] Statement (Sid: 'OverpermissiveObjectAccess', Action: 's3:GetObject, s3:PutObject') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+      }
+    ],
+    "violation_count": 1,
+    "error": null,
+    "raw_output": [
+      {
+        "filename": "",
+        "namespace": "main",
+        "successes": 2,
+        "failures": [
+          {
+            "msg": "[Rule: no_wildcard_resource] Statement (Sid: 'OverpermissiveObjectAccess', Action: 's3:GetObject, s3:PutObject') permits unrestricted Resource ('*'). Resources must be explicitly scoped by ARN."
+          }
+        ]
+      }
+    ]
+  }
+}
