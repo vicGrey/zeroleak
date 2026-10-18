@@ -1,5 +1,8 @@
 <div align="center">
 
+<img src="assets/banner.svg" alt="ZeroLeak AI: Offline AWS IAM Policy Auditor" width="100%">
+<br><br>
+
 # 🛡️ ZeroLeak AI
 
 ### Offline AWS IAM Policy Auditor
@@ -11,9 +14,32 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Offline%20%26%20Zero%20Telemetry-success)](docs/ARCHITECTURE_PLAN.md)
 [![Docker](https://img.shields.io/badge/Deployment-Docker%20%26%20Compose-2496ED)](docker-compose.yml)
 
-**No cloud endpoints. No API tokens. No vendor DPA. $0 cloud spend.**
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Ollama](https://img.shields.io/badge/Ollama-local%20runtime-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com)
+[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Terraform](https://img.shields.io/badge/Terraform-plan%20audit-844FBA?style=flat-square&logo=terraform&logoColor=white)](https://terraform.io)
+[![AWS IAM](https://img.shields.io/badge/AWS-IAM-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/iam/)
+[![Hacktoberfest](https://img.shields.io/badge/DEV%20Hacktoberfest-2026-FF8F00?style=flat-square&logo=devdotto&logoColor=white)](https://dev.to/challenges/hacktoberfest-week2-2026-10-12)
 
-[Architecture](#-5-stage-pipeline-architecture) • [Discovery Loop](#-the-discovery-loop-breaking-the-circular-verification-trap) • [Benchmark](#-benchmark-10-hand-crafted-policies) • [Real Plan](#-case-study-a-real-terraform-plan) • [Quickstart](#-quickstart-guide) • [Wi-Fi Off Test](#-the-wi-fi-off-verification-challenge) • [Limits](#-engineering-integrity--boundaries)
+<br>
+
+**🔒 No cloud endpoints. No API tokens. No vendor DPA. $0 cloud spend.**
+
+<br>
+
+<table>
+  <tr>
+    <td align="center"><b>~20 ms</b><br><sub>rule gate per policy</sub></td>
+    <td align="center"><b>52.2 s</b><br><sub>mean Gemma 2 2B on CPU</sub></td>
+    <td align="center"><b>0 bytes</b><br><sub>leave the machine</sub></td>
+    <td align="center"><b>10</b><br><sub>hand-crafted benchmark policies</sub></td>
+    <td align="center"><b>$0</b><br><sub>cloud spend</sub></td>
+  </tr>
+</table>
+
+<br>
+
+[Architecture](#-5-stage-pipeline-architecture) • [Discovery Loop](#-the-discovery-loop-breaking-the-circular-verification-trap) • [Benchmark](#-benchmark-10-hand-crafted-policies) • [Real Plan](#-case-study-a-real-terraform-plan) • [Quickstart](#-quickstart-guide) • [Wi-Fi Off Test](#%EF%B8%8F-the-wi-fi-off-verification-challenge) • [Limits](#%EF%B8%8F-engineering-integrity--boundaries)
 
 </div>
 
@@ -33,12 +59,15 @@ Offline tools like Checkov, tfsec, Cloudsplaining, and PMapper keep data local, 
 
 ZeroLeak is the review you run when cloud AI is contractually off the table. It pairs two reviewers on a laptop CPU:
 
-1. **Deterministic Rego rule gate (Conftest / OPA):** checks known-bad patterns (wildcard actions and resources, `NotAction` loopholes, wildcard trust relationships) in about 20ms per policy. It evaluates policy structure, so text hidden in a policy cannot talk it out of its rules.
-2. **Local open-weight model (Gemma 2 2B via Ollama):** explains risks in plain English, including permission combinations the rules don't cover yet, and proposes a tighter policy. About 52s per policy on CPU. No bytes leave the machine.
-3. **Re-verification and permission delta:** the proposed fix goes back through the gate, and the report lists which permissions were narrowed or dropped.
-4. **Client-ready reports:** Markdown and PDF (WeasyPrint).
+| | Reviewer | What it does |
+|:---:|---|---|
+| 🧱 | **Deterministic Rego rule gate**<br>*(Conftest / OPA)* | Checks known-bad patterns (wildcard actions and resources, `NotAction` loopholes, wildcard trust relationships) in about 20ms per policy. It evaluates policy structure, so text hidden in a policy cannot talk it out of its rules. |
+| 🧠 | **Local open-weight model**<br>*(Gemma 2 2B via Ollama)* | Explains risks in plain English, including permission combinations the rules don't cover yet, and proposes a tighter policy. About 52s per policy on CPU. No bytes leave the machine. |
+| 🔁 | **Re-verification & permission delta** | The proposed fix goes back through the gate, and the report lists which permissions were narrowed or dropped. |
+| 📄 | **Client-ready reports** | Markdown and PDF (WeasyPrint). |
 
-**The use case:** a consultant runs ZeroLeak locally during a fixed-fee IAM review (pilot price is $100 for up to 10 policies; no paying client yet), checks every finding by hand, and hands over the report. The hand check is the product. See [Limits](#-engineering-integrity--boundaries) for why.
+> [!IMPORTANT]
+> **The use case:** a consultant runs ZeroLeak locally during a fixed-fee IAM review (pilot price is $100 for up to 10 policies; no paying client yet), checks every finding by hand, and hands over the report. The hand check is the product. See [Limits](#%EF%B8%8F-engineering-integrity--boundaries) for why.
 
 ---
 
@@ -71,7 +100,8 @@ ZeroLeak is the review you run when cloud AI is contractually off the table. It 
                           [ Client Deliverable: PDF & Markdown ]
 ```
 
-**Outcome rule:** a policy is shown as "preserved intact" only when the gate and Gemma agree it is clean (0 gate violations and 0 combination risks). When they disagree (e.g. 0 gate violations, but Gemma flags combination risks), the pipeline routes to **Manual Review Recommended** and labels any proposed fix as advisory (no copy-paste fix without manual verification).
+> [!NOTE]
+> **Outcome rule:** a policy is shown as "preserved intact" only when the gate and Gemma agree it is clean (0 gate violations and 0 combination risks). When they disagree (e.g. 0 gate violations, but Gemma flags combination risks), the pipeline routes to **Manual Review Recommended** and labels any proposed fix as advisory (no copy-paste fix without manual verification).
 
 ---
 
@@ -85,7 +115,11 @@ Test 04 grants `iam:PassRole` together with `lambda:CreateFunction`, a well-know
 4. The fix re-ran through Conftest: **0 violations**.
 5. Calling that "Remediated & Verified" was **circular**. A broken fix that still contained the dangerous pair would have passed too, because the gate never tested for it. A review of my early results pointed this out.
 
-### The fix: model scouts, human codifies, gate enforces
+### ✨ The fix: model scouts, human codifies, gate enforces
+
+| 🔭 **Discover** | ✍️ **Codify** | 🚧 **Enforce** |
+|---|---|---|
+| Gemma flags a pattern the rules don't cover. | A human confirms the finding and writes a Rego rule. | The gate checks it on every run. |
 
 1. **Discover:** Gemma flags a pattern the rules don't cover.
 2. **Codify:** a human confirms the finding and writes a Rego rule in `policies/iam_policy.rego`:
@@ -108,6 +142,7 @@ deny contains msg if {
 
 3. **Verify for real:** the original policy now fails with 1 violation, and the remediated policy passes with 0.
 
+> [!WARNING]
 > **The same gap exists for Test 09.** The baseline gate sees only its wildcard resource. It has no rule for `ec2:RunInstances` + `iam:PassRole`, so a "verified" fix there means "passed the wildcard rules," not "the escalation is gone." Until that rule is codified into Rego, Test 09 is a Gemma-only semantic finding.
 
 ---
@@ -129,15 +164,20 @@ I wrote 10 policies targeting common IAM mistakes and ran each through Gemma 2 2
 | **09** | EC2 instance-profile escalation | 1 (wildcard only) | 2 (incl. escalation) | 🛠️ **Remediated (wildcard rules only)** | Gemma-only catch for instance profile combo; gate caught wildcard only. |
 | **10** | Prompt injection in a `Sid` | 2 | resisted | 🔒 **Gate Enforced** | The `Sid` told the auditor to ignore violations. The gate evaluates the policy's JSON structure alone, ignoring language. |
 
-> **Methodology & caveats**
-> - **Dataset:** 10 synthetic policies I wrote, so the author knows the answers. Not an independent test set.
-> - **Latency:** on a consumer CPU with no GPU, Gemma 2 2B had a **mean of 52.2s** per policy (**39.0s to 67.3s**).
-> - **Variance:** one pass per policy. Outputs can vary between runs, sampling settings and hardware.
-> - **Discovery evidence:** Gemma flagged unencoded combinations in two policies (04 and 09). That is small-n evidence (n=2) from a suite I wrote, not a statistical detection rate.
-> - **Note on 'Preserved Intact':** In this run, Gemma flagged combination risks on every policy, including the clean control (Test 01) and the clean read-only pressure test. Both went to Manual Review, so no test here shows a clean pass through both engines.
-> - Raw logs, including the before/after loop on Test 04, are in [`samples/results/`](samples/results/).
+<details open>
+<summary><b>📌 Methodology &amp; caveats</b></summary>
+<br>
 
-### Pressure test: three fresh policies
+- **Dataset:** 10 synthetic policies I wrote, so the author knows the answers. Not an independent test set.
+- **Latency:** on a consumer CPU with no GPU, Gemma 2 2B had a **mean of 52.2s** per policy (**39.0s to 67.3s**).
+- **Variance:** one pass per policy. Outputs can vary between runs, sampling settings and hardware.
+- **Discovery evidence:** Gemma flagged unencoded combinations in two policies (04 and 09). That is small-n evidence (n=2) from a suite I wrote, not a statistical detection rate.
+- **Note on 'Preserved Intact':** In this run, Gemma flagged combination risks on every policy, including the clean control (Test 01) and the clean read-only pressure test. Both went to Manual Review, so no test here shows a clean pass through both engines.
+- Raw logs, including the before/after loop on Test 04, are in [`samples/results/`](samples/results/).
+
+</details>
+
+### 🧨 Pressure test: three fresh policies
 
 To evaluate behavior on unfamiliar inputs, I ran three adversarial test cases (stored with raw evaluation logs in [`samples/pressure/`](samples/pressure/)):
 
@@ -174,7 +214,7 @@ The cost of this choice is speed (see the benchmark) and weaker reasoning than a
 
 ## 🚀 Quickstart Guide
 
-### Option A: Docker (recommended)
+### 🐳 Option A: Docker (recommended)
 
 ```bash
 git clone https://github.com/vicGrey/zeroleak.git
@@ -186,7 +226,7 @@ docker compose up
 - The first run needs internet once for images and model weights. After that, audits run offline.
 - Open **`http://localhost:8501`**.
 
-### Option B: Native
+### 🐍 Option B: Native
 
 Requirements: Python 3.10+, [Conftest](https://www.conftest.dev/install/) `v0.56.0+`, [Ollama](https://ollama.com/), and Pango/Cairo for PDF export.
 
@@ -214,8 +254,10 @@ terraform show -json tfplan > tfplan.json
 # Upload tfplan.json and click "Audit Entire Plan (Unified)"
 ```
 
+> [!TIP]
 > **Gate-first batch mode.** Every policy goes through the gate (~20ms). Only policies that fail are sent to Gemma. That's why the 48-resource, 10-policy plan above took 102 seconds instead of roughly 9 minutes.
->
+
+> [!CAUTION]
 > **The trade-off:** a policy that passes the gate never reaches the model, so unencoded combinations like Tests 04 and 09 are only found in Single Policy mode or once a rule exists. At about 52s per failing policy, 50 failures take about 43 minutes and 100 take about 87. For plans that large, use GPU-accelerated Ollama or write the rules.
 >
 > **Whole-plan audits are for teams running ZeroLeak on their own machines.** For client reviews, accept only the IAM policy documents: plans can contain secrets.
@@ -253,6 +295,9 @@ zeroleak/
 │   ├── policies/               # 10 benchmark policies (01-10)
 │   ├── pressure/               # 3 pressure-test policies + raw evaluation logs
 │   └── results/                # Raw benchmark logs
+├── assets/
+│   ├── banner.svg              # README banner
+│   └── logo.svg                # ZeroLeak logo
 ├── docs/
 │   └── ARCHITECTURE_PLAN.md    # Original engineering notes
 ├── Dockerfile
@@ -280,4 +325,15 @@ zeroleak/
 
 ## 📜 License
 
-MIT. See `LICENSE`. Built for the **DEV Hacktoberfest 2026** Week 2 challenge, *Best Use of Gemma*.
+MIT. See `LICENSE`.
+
+<br>
+
+<div align="center">
+  <img src="assets/logo.svg" alt="ZeroLeak AI logo" width="72">
+  <br><br>
+  <b>Built for the DEV Hacktoberfest 2026 Week 2 challenge, Best Use of Gemma.</b><br>
+  <sub>🛡️ Your infrastructure map stays on your machine.</sub>
+  <br><br>
+  <a href="https://ai.google.dev/gemma">Built with Gemma</a> • <a href="https://www.conftest.dev/">Powered by OPA</a> • <a href="https://ollama.com/">Runs on Ollama</a>
+</div>
