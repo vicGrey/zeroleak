@@ -14,10 +14,10 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Offline%20%26%20Zero%20Telemetry-success)](docs/ARCHITECTURE_PLAN.md)
 [![Docker](https://img.shields.io/badge/Deployment-Docker%20%26%20Compose-2496ED)](docker-compose.yml)
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Ollama](https://img.shields.io/badge/Ollama-local%20runtime-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com)
-[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![Terraform](https://img.shields.io/badge/Terraform-plan%20audit-844FBA?style=flat-square&logo=terraform&logoColor=white)](https://terraform.io)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-local%20runtime-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Terraform](https://img.shields.io/badge/Terraform-plan%20audit-844FBA?style=flat-square&logo=terraform&logoColor=white)](https://terraform.io/)
 [![AWS IAM](https://img.shields.io/badge/AWS-IAM-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/iam/)
 [![Hacktoberfest](https://img.shields.io/badge/DEV%20Hacktoberfest-2026-FF8F00?style=flat-square&logo=devdotto&logoColor=white)](https://dev.to/challenges/hacktoberfest-week2-2026-10-12)
 
@@ -39,13 +39,13 @@
 
 <br>
 
-[Architecture](#-5-stage-pipeline-architecture) • [Discovery Loop](#-the-discovery-loop-breaking-the-circular-verification-trap) • [Benchmark](#-benchmark-10-hand-crafted-policies) • [Real Plan](#-case-study-a-real-terraform-plan) • [Quickstart](#-quickstart-guide) • [Wi-Fi Off Test](#%EF%B8%8F-the-wi-fi-off-verification-challenge) • [Limits](#%EF%B8%8F-engineering-integrity--boundaries)
+[Architecture](#-5-stage-pipeline-architecture) • [Discovery Loop](#-the-discovery-loop-breaking-the-circular-verification-trap) • [Benchmark](#-benchmark-10-hand-crafted-policies) • [Real Plan](#-case-study-a-real-terraform-plan) • [Quickstart](#-quickstart) • [Wi-Fi Off Test](#%EF%B8%8F-the-wi-fi-off-test) • [Limits](#%EF%B8%8F-engineering-integrity-and-boundaries)
 
 </div>
 
 ---
 
-## 💡 The Problem: Cloud LLMs Send Your Infrastructure Secrets Off-Machine
+## 💡 The problem: cloud LLMs send your infrastructure secrets off-machine
 
 IAM policies are a map of an organization's infrastructure: account IDs, role naming conventions, ARN hierarchies, bucket names. Auditing them with a cloud LLM API means sending that map to a third party.
 
@@ -55,7 +55,7 @@ Offline tools like Checkov, tfsec, Cloudsplaining, and PMapper keep data local, 
 
 ---
 
-## ⚡ The Solution: ZeroLeak AI
+## ⚡ The solution: ZeroLeak AI
 
 ZeroLeak is the review you run when cloud AI is contractually off the table. It pairs two reviewers on a laptop CPU:
 
@@ -67,11 +67,11 @@ ZeroLeak is the review you run when cloud AI is contractually off the table. It 
 | 📄 | **Client-ready reports** | Markdown and PDF (WeasyPrint). |
 
 > [!IMPORTANT]
-> **Human-in-the-Loop Review:** ZeroLeak accelerates IAM audits by pairing fast deterministic rule enforcement with local model reasoning, but it is an advisory assistant, not an autonomous oracle. Every finding and proposed remediation must be verified by an engineer before applying to production. See [Limits](#%EF%B8%8F-engineering-integrity--boundaries) for details.
+> **Human-in-the-Loop Review:** ZeroLeak accelerates IAM audits by pairing fast deterministic rule enforcement with local model reasoning, but it is an advisory assistant, not an autonomous oracle. Every finding and proposed remediation must be verified by an engineer before applying to production. See [Limits](#%EF%B8%8F-engineering-integrity-and-boundaries) for details.
 
 ---
 
-## 🔬 5-Stage Pipeline Architecture
+## 🔬 5-stage pipeline architecture
 
 ```
                        [ Input: IAM Policy JSON / Terraform Plan ]
@@ -105,7 +105,7 @@ ZeroLeak is the review you run when cloud AI is contractually off the table. It 
 
 ---
 
-## 🔁 The Discovery Loop: Breaking the "Circular Verification" Trap
+## 🔁 The discovery loop: breaking the "circular verification" trap
 
 Test 04 grants `iam:PassRole` together with `lambda:CreateFunction`, a well-known escalation path.
 
@@ -113,7 +113,7 @@ Test 04 grants `iam:PassRole` together with `lambda:CreateFunction`, a well-know
 2. The original policy ran through Conftest: **0 violations** (a silent pass).
 3. Gemma flagged the escalation and wrote a scoped fix.
 4. The fix re-ran through Conftest: **0 violations**.
-5. Calling that "Remediated & Verified" was **circular**. A broken remediation that still contained the dangerous pair would have passed too, because the gate never tested for it—demonstrating why unencoded risks must be systematically fed back into the deterministic ruleset.
+5. Calling that "Remediated & Verified" was **circular**. A broken remediation that still contained the dangerous pair would have passed too, because the gate never tested for it. Unencoded risks have to be fed back into the deterministic ruleset.
 
 ### ✨ The fix: model scouts, human codifies, gate enforces
 
@@ -147,7 +147,7 @@ deny contains msg if {
 
 ---
 
-## 📊 Benchmark: 10 Hand-Crafted Policies
+## 📊 Benchmark: 10 hand-crafted policies
 
 I wrote 10 policies targeting common IAM mistakes and ran each through Gemma 2 2B via Ollama on laptop hardware (`temperature=0.1`, `top_p=0.9`, single pass).
 
@@ -172,7 +172,7 @@ I wrote 10 policies targeting common IAM mistakes and ran each through Gemma 2 2
 - **Latency:** on a consumer CPU with no GPU, Gemma 2 2B had a **mean of 52.2s** per policy (**39.0s to 67.3s**).
 - **Variance:** one pass per policy. Outputs can vary between runs, sampling settings and hardware.
 - **Discovery evidence:** Gemma flagged unencoded combinations in two policies (04 and 09). That is small-n evidence (n=2) from a suite I wrote, not a statistical detection rate.
-- **Note on 'Preserved Intact':** In this run, Gemma flagged combination risks on every policy, including the clean control (Test 01) and the clean read-only pressure test. Both went to Manual Review, so no test here shows a clean pass through both engines.
+- **Note on 'Preserved Intact':** In this run, Gemma flagged combination risks on every policy except Test 10, including the clean control (Test 01) and the clean read-only pressure test. Both went to Manual Review, so no test here shows a clean pass through both engines.
 - Raw logs, including the before/after loop on Test 04, are in [`samples/results/`](samples/results/).
 
 </details>
@@ -187,7 +187,7 @@ To evaluate behavior on unfamiliar inputs, I ran three adversarial test cases (s
 
 ---
 
-## 🧪 Case Study: A Real Terraform Plan
+## 🧪 Case study: a real Terraform plan
 
 I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi off. Details and screenshots are in my [DEV write-up](#) *(URL to be updated upon publication)*.
 
@@ -201,7 +201,7 @@ I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi 
 
 ## 🤖 Why Google Gemma 2 (2B)?
 
-Newer and larger models exist (including Gemma 3 and Gemma 4). I chose Gemma 2 2B for the hardware a freelancer actually carries:
+Newer and larger Gemma releases exist. I chose Gemma 2 2B for the hardware a freelancer actually carries:
 
 1. **Footprint:** a ~1.6 GB download that runs in about 3 to 4 GB of RAM on a laptop CPU with no discrete GPU.
 2. **Structured output:** for single-turn JSON audit and remediation it usually follows the schema. When output truncates on long policies, a Stage 3 sanitizer repairs trailing JSON.
@@ -212,7 +212,7 @@ The cost of this choice is speed (see the benchmark) and weaker reasoning than a
 
 ---
 
-## 🚀 Quickstart Guide
+## 🚀 Quickstart
 
 ### 🐳 Option A: Docker (recommended)
 
@@ -244,7 +244,7 @@ streamlit run app.py
 
 ---
 
-## 📦 Batch Terraform Plan Audit
+## 📦 Batch Terraform plan audit
 
 ZeroLeak parses `terraform show -json` output and extracts IAM policy documents. It inspects any resource defining a JSON policy block, specifically `aws_iam_role` (trust / assume-role policies), `aws_iam_role_policy`, `aws_iam_policy`, `aws_iam_user_policy`, `aws_iam_group_policy`, and `aws_s3_bucket_policy`.
 
@@ -264,7 +264,7 @@ terraform show -json tfplan > tfplan.json
 
 ---
 
-## ✈️ The "Wi-Fi Off" Verification Challenge
+## ✈️ The "Wi-Fi off" test
 
 Verify the offline claim in about a minute (after the one-time download):
 
@@ -277,7 +277,7 @@ Streamlit telemetry is disabled (`gatherUsageStats = false` in `.streamlit/confi
 
 ---
 
-## 🗂️ Project Structure
+## 🗂️ Project structure
 
 ```
 zeroleak/
@@ -308,7 +308,7 @@ zeroleak/
 
 ---
 
-## ⚖️ Engineering Integrity & Boundaries
+## ⚖️ Engineering integrity and boundaries
 
 - **The gate only proves your rules.** Zero violations means zero violations of the active ruleset, not that a policy is safe. The PassRole rule above is deliberately coarse and would flag a legitimately scoped deployer role. A production rule should inspect `Resource` and require an `iam:PassedToService` condition.
 - **A re-verification pass is weak.** It only confirms the fix doesn't trip the rules. It does not check that an ARN is valid or that the workload still works.
@@ -316,7 +316,7 @@ zeroleak/
 - **Human in the loop.** All production permission changes need peer review before deployment.
 - **One policy at a time.** Real escalation often spans several policies attached to one identity. Tools like PMapper and IAM Access Analyzer cover that, and ZeroLeak doesn't replace them.
 - **Discovery evidence is small.** Gemma flagged unencoded combinations in Tests 04 and 09 (n=2, authored by me). It cannot be assumed to find escalation chains reliably without a larger, independent test set.
-- **Empirical Scope:** Plan testing was conducted on an initial 48-resource Terraform deployment (identifying two flags). While this demonstrates feasibility on realistic infrastructure, broader evaluation across diverse production stacks is required before generalizing detection rates.
+- **Empirical scope.** Plan testing was conducted on an initial 48-resource Terraform deployment (identifying two flags). While this demonstrates feasibility on realistic infrastructure, broader evaluation across diverse production stacks is required before generalizing detection rates.
 - **Batch mode skips gate-passing policies.** See the Terraform section.
 - **Resource templates.** When wildcard resources are remediated without live account inventory, ZeroLeak suggests parameterized ARN templates (such as `arn:aws:s3:::my-bucket/*`) that must be replaced by hand.
 - **Attribution.** Foundational wildcard Rego patterns were adapted from my prior research in serverless zero-trust governance ([aws-serverless-zero-trust-governance](https://github.com/vicGrey/aws-serverless-zero-trust-governance)).
