@@ -67,7 +67,7 @@ ZeroLeak is the review you run when cloud AI is contractually off the table. It 
 | 📄 | **Client-ready reports** | Markdown and PDF (WeasyPrint). |
 
 > [!IMPORTANT]
-> **The use case:** a consultant runs ZeroLeak locally during a fixed-fee IAM review (pilot price is $100 for up to 10 policies; no paying client yet), checks every finding by hand, and hands over the report. The hand check is the product. See [Limits](#%EF%B8%8F-engineering-integrity--boundaries) for why.
+> **Human-in-the-Loop Review:** ZeroLeak accelerates IAM audits by pairing fast deterministic rule enforcement with local model reasoning, but it is an advisory assistant, not an autonomous oracle. Every finding and proposed remediation must be verified by an engineer before applying to production. See [Limits](#%EF%B8%8F-engineering-integrity--boundaries) for details.
 
 ---
 
@@ -113,7 +113,7 @@ Test 04 grants `iam:PassRole` together with `lambda:CreateFunction`, a well-know
 2. The original policy ran through Conftest: **0 violations** (a silent pass).
 3. Gemma flagged the escalation and wrote a scoped fix.
 4. The fix re-ran through Conftest: **0 violations**.
-5. Calling that "Remediated & Verified" was **circular**. A broken fix that still contained the dangerous pair would have passed too, because the gate never tested for it. A review of my early results pointed this out.
+5. Calling that "Remediated & Verified" was **circular**. A broken remediation that still contained the dangerous pair would have passed too, because the gate never tested for it—demonstrating why unencoded risks must be systematically fed back into the deterministic ruleset.
 
 ### ✨ The fix: model scouts, human codifies, gate enforces
 
@@ -260,7 +260,7 @@ terraform show -json tfplan > tfplan.json
 > [!CAUTION]
 > **The trade-off:** a policy that passes the gate never reaches the model, so unencoded combinations like Tests 04 and 09 are only found in Single Policy mode or once a rule exists. At about 52s per failing policy, 50 failures take about 43 minutes and 100 take about 87. For plans that large, use GPU-accelerated Ollama or write the rules.
 >
-> **Whole-plan audits are for teams running ZeroLeak on their own machines.** For client reviews, accept only the IAM policy documents: plans can contain secrets.
+> **Security Best Practice:** Terraform plans frequently contain sensitive configuration state and credentials. When auditing external or shared infrastructure, extract and review only the JSON IAM policy documents rather than passing entire unredacted plan files.
 
 ---
 
@@ -316,7 +316,7 @@ zeroleak/
 - **Human in the loop.** All production permission changes need peer review before deployment.
 - **One policy at a time.** Real escalation often spans several policies attached to one identity. Tools like PMapper and IAM Access Analyzer cover that, and ZeroLeak doesn't replace them.
 - **Discovery evidence is small.** Gemma flagged unencoded combinations in Tests 04 and 09 (n=2, authored by me). It cannot be assumed to find escalation chains reliably without a larger, independent test set.
-- **Real-world sample size.** My only real-world data is one plan: two flags, both on common patterns. That's a small sample, not a comprehensive industry rate.
+- **Empirical Scope:** Plan testing was conducted on an initial 48-resource Terraform deployment (identifying two flags). While this demonstrates feasibility on realistic infrastructure, broader evaluation across diverse production stacks is required before generalizing detection rates.
 - **Batch mode skips gate-passing policies.** See the Terraform section.
 - **Resource templates.** When wildcard resources are remediated without live account inventory, ZeroLeak suggests parameterized ARN templates (such as `arn:aws:s3:::my-bucket/*`) that must be replaced by hand.
 - **Attribution.** Foundational wildcard Rego patterns were adapted from my prior research in serverless zero-trust governance ([aws-serverless-zero-trust-governance](https://github.com/vicGrey/aws-serverless-zero-trust-governance)).
