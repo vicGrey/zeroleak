@@ -3,6 +3,7 @@
 __pycache__
 *.pyc
 .active_audit_cache.json
+.pytest_cache
 test_*.pdf
 test_*.png
 test_output*

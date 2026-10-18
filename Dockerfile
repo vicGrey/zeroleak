@@ -12,11 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpangocairo-1.0-0 \
     libgdk-pixbuf-2.0-0 \
     shared-mime-info \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Conftest binary (pinned stable release)
+# Install Conftest binary (pinned stable release, multi-arch support for x86_64 and arm64/Apple Silicon)
 ENV CONFTEST_VERSION="0.56.0"
-RUN curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar -xz -C /tmp \
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then CONFTEST_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then CONFTEST_ARCH="arm64"; \
+    else CONFTEST_ARCH="x86_64"; fi && \
+    curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_${CONFTEST_ARCH}.tar.gz" | tar -xz -C /tmp \
     && mv /tmp/conftest /usr/local/bin/conftest \
     && chmod +x /usr/local/bin/conftest \
     && rm -rf /tmp/*

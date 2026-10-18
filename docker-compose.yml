@@ -22,9 +22,19 @@ services:
         until curl -s http://ollama:11434/api/tags > /dev/null; do
           sleep 1
         done
-        echo "Ollama is ready. Ensuring gemma2:2b is loaded..."
-        curl -s -X POST http://ollama:11434/api/pull -d '{"name": "gemma2:2b"}'
-        echo "Gemma 2B is ready!"
+        echo "Checking local model cache..."
+        TAGS=$$(curl -s http://ollama:11434/api/tags)
+        case "$$TAGS" in
+          *gemma2:2b*)
+            echo "gemma2:2b is already present in volume. Offline ready!"
+            ;;
+          *)
+            echo "Downloading gemma2:2b (~1.6GB, one-time setup)..."
+            curl -s -X POST http://ollama:11434/api/pull -d '{"name": "gemma2:2b"}'
+            echo ""
+            echo "Gemma 2B is ready!"
+            ;;
+        esac
 
   zeroleak:
     build:
@@ -37,8 +47,10 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
     depends_on:
-      - ollama
-      - ollama-init
+      ollama:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
 
 volumes:
   ollama_models:
