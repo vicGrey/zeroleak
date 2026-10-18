@@ -254,8 +254,7 @@ zeroleak/
 │   ├── pressure/               # 3 pressure-test policies + raw evaluation logs
 │   └── results/                # Raw benchmark logs
 ├── docs/
-│   ├── ARCHITECTURE_PLAN.md    # Original engineering notes
-│   └── DEV_SUBMISSION.md       # DEV Hacktoberfest submission article
+│   └── ARCHITECTURE_PLAN.md    # Original engineering notes
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
