@@ -189,7 +189,7 @@ To evaluate behavior on unfamiliar inputs, I ran three adversarial test cases (s
 
 ## 🧪 Case study: a real Terraform plan
 
-I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi off. Details and screenshots are in my [DEV write-up](#) *(URL to be updated upon publication)*.
+I ran ZeroLeak on a 48-resource plan from my own final-year project, with Wi-Fi off. Details and screenshots are in my [DEV write-up](https://dev.to/okoroaforvic/i-built-an-offline-aws-auditor-it-caught-my-mistakes-then-made-its-own-2j25).
 
 - **Time:** 102.29s on a laptop CPU.
 - **IAM policy documents found:** 10. Five passed the gate, two failed, and three had no readable text at plan time (interpolated values like a table ARN or a login pool).
